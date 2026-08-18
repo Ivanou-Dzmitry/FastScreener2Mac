@@ -14,10 +14,6 @@ final class CaptureFrameView: NSView {
     static let leftBarWidth: CGFloat = 32
     static let bottomBarHeight: CGFloat = 20
 
-    private let edgeMargin: CGFloat = 8
-    // Must stay large enough that the left toolbar's 3 stacked buttons
-    // (28pt top-bar gap + 3×30pt) never collide with the bottom bar.
-    private let minSize: CGFloat = 200
     private let snapMargin: CGFloat = 8
     private let borderWidth: CGFloat = 1.5
     private let borderColor = NSColor.black
@@ -27,7 +23,6 @@ final class CaptureFrameView: NSView {
     private enum DragMode {
         case none
         case move(offset: CGPoint)
-        case resize(left: Bool, right: Bool, top: Bool, bottom: Bool, startFrame: CGRect, startPoint: CGPoint)
     }
     private var dragMode: DragMode = .none
 
@@ -223,88 +218,28 @@ final class CaptureFrameView: NSView {
 
     // MARK: - Left button: resize / move
 
+    // Size only ever changes via menu/hotkey/resolution-cycle button —
+    // dragging the frame just moves it, no edge/corner resize handles.
     override func mouseDown(with event: NSEvent) {
         guard let window = window else { return }
-        let p = convert(event.locationInWindow, from: nil)
-        let rect = captureRect
-
-        // Hit-test against the capture rect's own edges, not the outer
-        // window bounds — the outer edges sit under the chrome buttons
-        // (close, filename field, etc.), which intercept the click
-        // before it ever reaches here.
-        let nearLeft = abs(p.x - rect.minX) <= edgeMargin
-        let nearRight = abs(p.x - rect.maxX) <= edgeMargin
-        let nearTop = abs(p.y - rect.maxY) <= edgeMargin
-        let nearBottom = abs(p.y - rect.minY) <= edgeMargin
-        let inVerticalRange = p.y >= rect.minY - edgeMargin && p.y <= rect.maxY + edgeMargin
-        let inHorizontalRange = p.x >= rect.minX - edgeMargin && p.x <= rect.maxX + edgeMargin
-
-        let left = nearLeft && inVerticalRange
-        let right = nearRight && inVerticalRange
-        let top = nearTop && inHorizontalRange
-        let bottom = nearBottom && inHorizontalRange
-
-        if left || right || top || bottom {
-            dragMode = .resize(left: left, right: right, top: top, bottom: bottom, startFrame: window.frame, startPoint: NSEvent.mouseLocation)
-        } else {
-            let winOrigin = window.frame.origin
-            let mouseLoc = NSEvent.mouseLocation
-            dragMode = .move(offset: CGPoint(x: mouseLoc.x - winOrigin.x, y: mouseLoc.y - winOrigin.y))
-        }
+        let winOrigin = window.frame.origin
+        let mouseLoc = NSEvent.mouseLocation
+        dragMode = .move(offset: CGPoint(x: mouseLoc.x - winOrigin.x, y: mouseLoc.y - winOrigin.y))
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let window = window else { return }
+        guard let window = window, case .move(let offset) = dragMode else { return }
         let mouseLoc = NSEvent.mouseLocation
-
-        switch dragMode {
-        case .move(let offset):
-            let newOrigin = snappedOrigin(
-                CGPoint(x: mouseLoc.x - offset.x, y: mouseLoc.y - offset.y),
-                size: window.frame.size
-            )
-            window.setFrameOrigin(newOrigin)
-            needsDisplay = true
-
-        case .resize(let left, let right, let top, let bottom, let startFrame, let startPoint):
-            let dx = mouseLoc.x - startPoint.x
-            let dy = mouseLoc.y - startPoint.y
-            var f = startFrame
-
-            if left {
-                let newX = min(startFrame.origin.x + dx, startFrame.maxX - minSize)
-                f.size.width = startFrame.maxX - newX
-                f.origin.x = newX
-            } else if right {
-                f.size.width = max(minSize, startFrame.width + dx)
-            }
-
-            if bottom {
-                let newY = min(startFrame.origin.y + dy, startFrame.maxY - minSize)
-                f.size.height = startFrame.maxY - newY
-                f.origin.y = newY
-            } else if top {
-                f.size.height = max(minSize, startFrame.height + dy)
-            }
-
-            f = snappedResizeFrame(f, left: left, right: right, top: top, bottom: bottom)
-            window.setFrame(f, display: true)
-
-        case .none:
-            break
-        }
+        let newOrigin = snappedOrigin(
+            CGPoint(x: mouseLoc.x - offset.x, y: mouseLoc.y - offset.y),
+            size: window.frame.size
+        )
+        window.setFrameOrigin(newOrigin)
+        needsDisplay = true
     }
 
     override func mouseUp(with event: NSEvent) {
         dragMode = .none
-    }
-
-    override func resetCursorRects() {
-        let rect = captureRect
-        addCursorRect(NSRect(x: rect.minX, y: rect.maxY - edgeMargin, width: rect.width, height: edgeMargin * 2), cursor: .resizeUpDown)
-        addCursorRect(NSRect(x: rect.minX, y: rect.minY - edgeMargin, width: rect.width, height: edgeMargin * 2), cursor: .resizeUpDown)
-        addCursorRect(NSRect(x: rect.minX - edgeMargin, y: rect.minY, width: edgeMargin * 2, height: rect.height), cursor: .resizeLeftRight)
-        addCursorRect(NSRect(x: rect.maxX - edgeMargin, y: rect.minY, width: edgeMargin * 2, height: rect.height), cursor: .resizeLeftRight)
     }
 
     // MARK: - Middle button: annotations (only within the capture rect)
@@ -463,25 +398,4 @@ final class CaptureFrameView: NSView {
         return o
     }
 
-    private func snappedResizeFrame(_ frame: CGRect, left: Bool, right: Bool, top: Bool, bottom: Bool) -> CGRect {
-        let screenFrame = virtualScreenFrame()
-        var f = frame
-        if right, abs(f.maxX - screenFrame.maxX) < snapMargin {
-            f.size.width = screenFrame.maxX - f.origin.x
-        }
-        if left, abs(f.minX - screenFrame.minX) < snapMargin {
-            let delta = f.origin.x - screenFrame.minX
-            f.origin.x -= delta
-            f.size.width += delta
-        }
-        if top, abs(f.maxY - screenFrame.maxY) < snapMargin {
-            f.size.height = screenFrame.maxY - f.origin.y
-        }
-        if bottom, abs(f.minY - screenFrame.minY) < snapMargin {
-            let delta = f.origin.y - screenFrame.minY
-            f.origin.y -= delta
-            f.size.height += delta
-        }
-        return f
-    }
 }
