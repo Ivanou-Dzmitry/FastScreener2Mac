@@ -13,6 +13,7 @@ final class CaptureFrameView: NSView {
     static let topBarHeight: CGFloat = 28
     static let leftBarWidth: CGFloat = 32
     static let bottomBarHeight: CGFloat = 20
+    static let filenameMaxLength = 42
 
     private let snapMargin: CGFloat = 8
     private let borderWidth: CGFloat = 1.5
@@ -142,10 +143,11 @@ final class CaptureFrameView: NSView {
         addSubview(resCycleButton)
 
         filenameField = NSTextField(frame: CGRect(x: 81, y: topY + 4, width: bounds.width - 81 - 81, height: 20))
-        filenameField.placeholderString = "File name (optional)"
+        filenameField.placeholderString = "File name (\(Self.filenameMaxLength) symbols, optional)"
         filenameField.font = .systemFont(ofSize: 11)
         filenameField.autoresizingMask = [.width, .minYMargin]
         filenameField.usesSingleLineMode = true
+        filenameField.delegate = self
         addSubview(filenameField)
 
         let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: bounds.width - 25, y: topY + 3, width: 22, height: 22))
@@ -397,5 +399,12 @@ final class CaptureFrameView: NSView {
         if abs((o.y + size.height) - screenFrame.maxY) < snapMargin { o.y = screenFrame.maxY - size.height }
         return o
     }
+}
 
+extension CaptureFrameView: NSTextFieldDelegate {
+    func controlTextDidChange(_ obligatory: Notification) {
+        if filenameField.stringValue.count > Self.filenameMaxLength {
+            filenameField.stringValue = String(filenameField.stringValue.prefix(Self.filenameMaxLength))
+        }
+    }
 }
