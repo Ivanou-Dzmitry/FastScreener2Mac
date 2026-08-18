@@ -9,7 +9,7 @@ import ScreenCaptureKit
 enum ScreenCapture {
     enum CaptureError: Error { case noScreen, noDisplay }
 
-    static func captureRect(_ rect: CGRect, excludingWindowNumber: Int?) async throws -> NSImage {
+    static func captureRect(_ rect: CGRect, excludingWindowNumbers: [Int]) async throws -> NSImage {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
 
         guard let nsScreen = screenContaining(rect) else { throw CaptureError.noScreen }
@@ -18,10 +18,8 @@ enum ScreenCapture {
             throw CaptureError.noDisplay
         }
 
-        var excluded: [SCWindow] = []
-        if let winNum = excludingWindowNumber {
-            excluded = content.windows.filter { $0.windowID == CGWindowID(winNum) }
-        }
+        let excludedIDs = Set(excludingWindowNumbers.map { CGWindowID($0) })
+        let excluded = content.windows.filter { excludedIDs.contains($0.windowID) }
 
         let filter = SCContentFilter(display: scDisplay, excludingWindows: excluded)
         let config = SCStreamConfiguration()

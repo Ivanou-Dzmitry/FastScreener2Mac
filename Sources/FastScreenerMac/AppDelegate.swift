@@ -4,6 +4,7 @@ import Carbon.HIToolbox
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: CaptureWindow!
+    var toolPalette: ToolPaletteWindow!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screen = NSScreen.main!.frame
@@ -17,10 +18,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window = CaptureWindow(contentRect: CGRect(origin: origin, size: windowSize))
         if let frameView = window.contentView as? CaptureFrameView {
             frameView.onCaptureRequested = { [weak self] in self?.captureAndSave() }
+            frameView.onToolChanged = { [weak self] tool in self?.toolPalette.highlight(tool) }
         }
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(window.contentView)
         NSApp.activate(ignoringOtherApps: true)
+
+        toolPalette = ToolPaletteWindow()
+        toolPalette.onToolSelected = { [weak self] tool in
+            (self?.window.contentView as? CaptureFrameView)?.currentTool = tool
+        }
+        toolPalette.highlight((window.contentView as? CaptureFrameView)?.currentTool ?? .arrow)
+        positionToolPalette()
+        toolPalette.orderFront(nil)
+
+        NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.positionToolPalette() }
+        }
+        NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.positionToolPalette() }
+        }
 
         HotkeyManager.shared.register(keyCode: kVK_F4) { [weak self] in
             self?.captureAndSave()
@@ -29,6 +46,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    // Keeps the floating tool palette glued to the main window's left
+    // edge, overlapping slightly into its chrome margin, as it moves/resizes.
+    private func positionToolPalette() {
+        guard let window, let toolPalette else { return }
+        let mainFrame = window.frame
+        let x = mainFrame.minX - toolPalette.frame.width + 12
+        let y = mainFrame.maxY - CaptureFrameView.topBarHeight - 12 - toolPalette.frame.height
+        toolPalette.setFrameOrigin(CGPoint(x: x, y: y))
     }
 
     private func captureAndSave() {
@@ -40,13 +67,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             width: interior.width,
             height: interior.height
         )
-        let windowNumber = window.windowNumber
+        let excludedWindowNumbers = [window.windowNumber, toolPalette.windowNumber]
         let annotations = frameView.annotations
         let filenameOverride = frameView.filenameOverride
 
         Task {
             do {
-                let rawImage = try await ScreenCapture.captureRect(screenRect, excludingWindowNumber: windowNumber)
+                let rawImage = try await ScreenCapture.captureRect(screenRect, excludingWindowNumbers: excludedWindowNumbers)
                 let finalImage = Self.composite(annotations: annotations, onto: rawImage, size: interior.size, offset: interior.origin)
 
                 NSPasteboard.general.clearContents()

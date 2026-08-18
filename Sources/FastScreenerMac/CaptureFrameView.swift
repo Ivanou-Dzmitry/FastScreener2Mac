@@ -20,7 +20,7 @@ final class CaptureFrameView: NSView {
     private let minSize: CGFloat = 200
     private let snapMargin: CGFloat = 8
     private let borderWidth: CGFloat = 1.5
-    private let borderColor = NSColor.systemRed
+    private let borderColor = NSColor.black
     private let annotationColor = NSColor.systemYellow
     private let chromeColor = NSColor(calibratedWhite: 0.1, alpha: 0.92)
 
@@ -34,9 +34,10 @@ final class CaptureFrameView: NSView {
     var currentTool: AnnotationTool = .arrow {
         didSet {
             needsDisplay = true
-            updateToolButtonHighlight()
+            onToolChanged?(currentTool)
         }
     }
+    var onToolChanged: ((AnnotationTool) -> Void)?
     var annotations: [Annotation] = [] { didSet { needsDisplay = true } }
     private var nextNumber = 1
     private var pendingStart: CGPoint?
@@ -57,7 +58,6 @@ final class CaptureFrameView: NSView {
     var filenameOverride: String { filenameField.stringValue }
 
     private var hamburgerButton: IconButton!
-    private var toolButtons: [AnnotationTool: IconButton] = [:]
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -91,11 +91,10 @@ final class CaptureFrameView: NSView {
         drawPendingPreview()
 
         let rect = captureRect
-        let dashPath = NSBezierPath(rect: rect.insetBy(dx: borderWidth / 2, dy: borderWidth / 2))
-        dashPath.setLineDash([5, 3], count: 2, phase: 0)
-        dashPath.lineWidth = borderWidth
+        let borderPath = NSBezierPath(rect: rect.insetBy(dx: borderWidth / 2, dy: borderWidth / 2))
+        borderPath.lineWidth = borderWidth
         borderColor.setStroke()
-        dashPath.stroke()
+        borderPath.stroke()
 
         drawStatusText()
     }
@@ -130,6 +129,8 @@ final class CaptureFrameView: NSView {
     private func setupChrome() {
         let topY = bounds.height - Self.topBarHeight
 
+        // Left-to-right: hamburger, capture, resolution-cycle, filename,
+        // [gap], settings, minimize, close.
         hamburgerButton = IconButton(icon: IconLoader.load("menu_icon"), frame: CGRect(x: 3, y: topY + 3, width: 22, height: 22))
         hamburgerButton.autoresizingMask = [.minYMargin]
         hamburgerButton.onClick = { [weak self] in self?.showMenu() }
@@ -140,44 +141,32 @@ final class CaptureFrameView: NSView {
         captureButton.onClick = { [weak self] in self?.onCaptureRequested?() }
         addSubview(captureButton)
 
-        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: bounds.width - 25, y: topY + 3, width: 22, height: 22))
-        closeButton.autoresizingMask = [.minXMargin, .minYMargin]
-        closeButton.onClick = { NSApplication.shared.terminate(nil) }
-        addSubview(closeButton)
+        let resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: 55, y: topY + 3, width: 22, height: 22))
+        resCycleButton.autoresizingMask = [.minYMargin]
+        resCycleButton.onClick = { [weak self] in self?.cyclePreset() }
+        addSubview(resCycleButton)
 
-        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: bounds.width - 51, y: topY + 3, width: 22, height: 22))
-        settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
-        settingsButton.onClick = { print("Settings: not built yet") }
-        addSubview(settingsButton)
-
-        filenameField = NSTextField(frame: CGRect(x: 55, y: topY + 4, width: bounds.width - 55 - 55, height: 20))
+        filenameField = NSTextField(frame: CGRect(x: 81, y: topY + 4, width: bounds.width - 81 - 81, height: 20))
         filenameField.placeholderString = "File name (optional)"
         filenameField.font = .systemFont(ofSize: 11)
         filenameField.autoresizingMask = [.width, .minYMargin]
         filenameField.usesSingleLineMode = true
         addSubview(filenameField)
 
-        let toolIcons: [(AnnotationTool, String)] = [
-            (.arrow, "arrow_icon"),
-            (.frame, "frame_icon"),
-            (.number, "number_icon"),
-        ]
-        for (index, pair) in toolIcons.enumerated() {
-            let (tool, iconName) = pair
-            let y = topY - 28 - CGFloat(index) * 30
-            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 4, y: y, width: Self.leftBarWidth - 8, height: 24))
-            button.autoresizingMask = [.maxYMargin]
-            button.onClick = { [weak self] in self?.currentTool = tool }
-            addSubview(button)
-            toolButtons[tool] = button
-        }
-        updateToolButtonHighlight()
-    }
+        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: bounds.width - 25, y: topY + 3, width: 22, height: 22))
+        closeButton.autoresizingMask = [.minXMargin, .minYMargin]
+        closeButton.onClick = { NSApplication.shared.terminate(nil) }
+        addSubview(closeButton)
 
-    private func updateToolButtonHighlight() {
-        for (tool, button) in toolButtons {
-            button.isActive = (tool == currentTool)
-        }
+        let minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: bounds.width - 51, y: topY + 3, width: 22, height: 22))
+        minimizeButton.autoresizingMask = [.minXMargin, .minYMargin]
+        minimizeButton.onClick = { [weak self] in self?.window?.miniaturize(nil) }
+        addSubview(minimizeButton)
+
+        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: bounds.width - 77, y: topY + 3, width: 22, height: 22))
+        settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
+        settingsButton.onClick = { print("Settings: not built yet") }
+        addSubview(settingsButton)
     }
 
     // MARK: - Menu
@@ -215,10 +204,23 @@ final class CaptureFrameView: NSView {
     override func mouseDown(with event: NSEvent) {
         guard let window = window else { return }
         let p = convert(event.locationInWindow, from: nil)
-        let left = p.x <= edgeMargin
-        let right = p.x >= bounds.width - edgeMargin
-        let bottom = p.y <= edgeMargin
-        let top = p.y >= bounds.height - edgeMargin
+        let rect = captureRect
+
+        // Hit-test against the capture rect's own edges, not the outer
+        // window bounds — the outer edges sit under the chrome buttons
+        // (close, filename field, etc.), which intercept the click
+        // before it ever reaches here.
+        let nearLeft = abs(p.x - rect.minX) <= edgeMargin
+        let nearRight = abs(p.x - rect.maxX) <= edgeMargin
+        let nearTop = abs(p.y - rect.maxY) <= edgeMargin
+        let nearBottom = abs(p.y - rect.minY) <= edgeMargin
+        let inVerticalRange = p.y >= rect.minY - edgeMargin && p.y <= rect.maxY + edgeMargin
+        let inHorizontalRange = p.x >= rect.minX - edgeMargin && p.x <= rect.maxX + edgeMargin
+
+        let left = nearLeft && inVerticalRange
+        let right = nearRight && inVerticalRange
+        let top = nearTop && inHorizontalRange
+        let bottom = nearBottom && inHorizontalRange
 
         if left || right || top || bottom {
             dragMode = .resize(left: left, right: right, top: top, bottom: bottom, startFrame: window.frame, startPoint: NSEvent.mouseLocation)
@@ -276,10 +278,11 @@ final class CaptureFrameView: NSView {
     }
 
     override func resetCursorRects() {
-        addCursorRect(NSRect(x: 0, y: bounds.height - edgeMargin, width: bounds.width, height: edgeMargin), cursor: .resizeUpDown)
-        addCursorRect(NSRect(x: 0, y: 0, width: bounds.width, height: edgeMargin), cursor: .resizeUpDown)
-        addCursorRect(NSRect(x: 0, y: 0, width: edgeMargin, height: bounds.height), cursor: .resizeLeftRight)
-        addCursorRect(NSRect(x: bounds.width - edgeMargin, y: 0, width: edgeMargin, height: bounds.height), cursor: .resizeLeftRight)
+        let rect = captureRect
+        addCursorRect(NSRect(x: rect.minX, y: rect.maxY - edgeMargin, width: rect.width, height: edgeMargin * 2), cursor: .resizeUpDown)
+        addCursorRect(NSRect(x: rect.minX, y: rect.minY - edgeMargin, width: rect.width, height: edgeMargin * 2), cursor: .resizeUpDown)
+        addCursorRect(NSRect(x: rect.minX - edgeMargin, y: rect.minY, width: edgeMargin * 2, height: rect.height), cursor: .resizeLeftRight)
+        addCursorRect(NSRect(x: rect.maxX - edgeMargin, y: rect.minY, width: edgeMargin * 2, height: rect.height), cursor: .resizeLeftRight)
     }
 
     // MARK: - Middle button: annotations (only within the capture rect)
