@@ -162,7 +162,7 @@ final class CaptureFrameView: NSView {
         ]
         for (index, pair) in toolIcons.enumerated() {
             let (tool, iconName) = pair
-            let y = topY - 8 - CGFloat(index) * 30
+            let y = topY - 28 - CGFloat(index) * 30
             let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 4, y: y, width: Self.leftBarWidth - 8, height: 24))
             button.autoresizingMask = [.maxYMargin]
             button.onClick = { [weak self] in self?.currentTool = tool }
