@@ -4,10 +4,16 @@ import AppKit
 // Equivalent to FS2MainForm in the original WinForms app: the window's
 // content area IS the screen region that will be captured, so it must
 // show nothing itself (interior stays fully transparent) while still
-// receiving mouse events for resize/move/annotation.
+// receiving mouse events for move/annotation.
+//
+// styleMask deliberately omits .resizable: with it present, macOS gives
+// borderless windows their own system-level edge-drag resize behavior
+// regardless of what CaptureFrameView's own mouse handling does — that
+// was the actual source of "resize by hand still works" even after all
+// hand-resize logic was removed from the view.
 final class CaptureWindow: NSWindow {
     convenience init(contentRect: CGRect) {
-        self.init(contentRect: contentRect, styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
+        self.init(contentRect: contentRect, styleMask: [.borderless], backing: .buffered, defer: false)
 
         isOpaque = false
         backgroundColor = .clear
