@@ -2,11 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "FastScreenerMacSpike",
+    name: "FastScreenerMac",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
             name: "FastScreenerMacSpike"
+        ),
+        .executableTarget(
+            name: "FastScreenerMac"
         ),
     ]
 )
