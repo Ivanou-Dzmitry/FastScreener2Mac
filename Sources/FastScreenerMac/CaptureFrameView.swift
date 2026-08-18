@@ -34,10 +34,9 @@ final class CaptureFrameView: NSView {
     var currentTool: AnnotationTool = .arrow {
         didSet {
             needsDisplay = true
-            onToolChanged?(currentTool)
+            updateToolButtonHighlight()
         }
     }
-    var onToolChanged: ((AnnotationTool) -> Void)?
     var annotations: [Annotation] = [] { didSet { needsDisplay = true } }
     private var nextNumber = 1
     private var pendingStart: CGPoint?
@@ -45,10 +44,10 @@ final class CaptureFrameView: NSView {
 
     // Alt+1..4 apply these, Alt+5 is fullscreen, Ctrl+Right cycles them.
     private let presets: [CGSize] = [
-        CGSize(width: 800, height: 450),
-        CGSize(width: 1280, height: 720),
-        CGSize(width: 1920, height: 1080),
-        CGSize(width: 640, height: 480),
+        CGSize(width: 650, height: 366),
+        CGSize(width: 650, height: 650),
+        CGSize(width: 650, height: 700),
+        CGSize(width: 960, height: 600),
     ]
     private var currentPresetIndex = 0
     private var preMaxFrame: CGRect?
@@ -58,6 +57,7 @@ final class CaptureFrameView: NSView {
     var filenameOverride: String { filenameField.stringValue }
 
     private var hamburgerButton: IconButton!
+    private var toolButtons: [AnnotationTool: IconButton] = [:]
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -167,6 +167,28 @@ final class CaptureFrameView: NSView {
         settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
         settingsButton.onClick = { print("Settings: not built yet") }
         addSubview(settingsButton)
+
+        let toolIcons: [(AnnotationTool, String)] = [
+            (.arrow, "arrow_icon"),
+            (.frame, "frame_icon"),
+            (.number, "number_icon"),
+        ]
+        for (index, pair) in toolIcons.enumerated() {
+            let (tool, iconName) = pair
+            let y = topY - 28 - CGFloat(index) * 30
+            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 4, y: y, width: Self.leftBarWidth - 8, height: 24))
+            button.autoresizingMask = [.maxYMargin]
+            button.onClick = { [weak self] in self?.currentTool = tool }
+            addSubview(button)
+            toolButtons[tool] = button
+        }
+        updateToolButtonHighlight()
+    }
+
+    private func updateToolButtonHighlight() {
+        for (tool, button) in toolButtons {
+            button.isActive = (tool == currentTool)
+        }
     }
 
     // MARK: - Menu
