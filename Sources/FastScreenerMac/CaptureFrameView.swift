@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 // Draws the frame outline and handles edge/corner drag-resize plus
 // interior drag-move (left button), with snapping to screen edges.
@@ -26,6 +27,16 @@ final class CaptureFrameView: NSView {
     private var nextNumber = 1
     private var pendingStart: CGPoint?
     private var pendingCurrent: CGPoint?
+
+    // Alt+1..4 apply these, Alt+5 is fullscreen, Ctrl+Right cycles them.
+    private let presets: [CGSize] = [
+        CGSize(width: 800, height: 450),
+        CGSize(width: 1280, height: 720),
+        CGSize(width: 1920, height: 1080),
+        CGSize(width: 640, height: 480),
+    ]
+    private var currentPresetIndex = 0
+    private var preMaxFrame: CGRect?
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -66,7 +77,7 @@ final class CaptureFrameView: NSView {
         case .frame: toolName = "Frame"
         case .number: toolName = "Number"
         }
-        let text = "Tool: \(toolName)  [1 Arrow 2 Frame 3 Number 0 None | F4 Capture | ⌘Z Undo ⌘⇧Z Clear]"
+        let text = "Tool: \(toolName)  [1/2/3/0 Tool | F4 Capture | ⌘Z Undo ⌘⇧Z Clear | ⌥1-4 Preset ⌥5 Fullscreen ⌃⇧M Max ⌃→ Cycle]"
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 11),
             .foregroundColor: NSColor.white,
@@ -191,35 +202,102 @@ final class CaptureFrameView: NSView {
         }
     }
 
-    // MARK: - Keyboard: tool switching + undo/clear
+    // MARK: - Keyboard: tool switching, undo/clear, size presets
 
     override func keyDown(with event: NSEvent) {
-        guard let chars = event.charactersIgnoringModifiers else { return super.keyDown(with: event) }
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let chars = event.charactersIgnoringModifiers
 
-        if event.modifierFlags.contains(.command), chars == "z" {
-            if event.modifierFlags.contains(.shift) {
-                annotations.removeAll()
-                nextNumber = 1
-            } else {
-                _ = annotations.popLast()
-            }
+        if mods == [.command], chars == "z" {
+            _ = annotations.popLast()
             needsDisplay = true
             return
         }
-
-        switch chars {
-        case "1": currentTool = .arrow
-        case "2": currentTool = .frame
-        case "3": currentTool = .number
-        case "0": currentTool = .none
-        default: super.keyDown(with: event)
+        if mods == [.command, .shift], chars == "z" {
+            annotations.removeAll()
+            nextNumber = 1
+            needsDisplay = true
+            return
         }
+        if mods == [.option] {
+            switch Int(event.keyCode) {
+            case kVK_ANSI_1: applyPreset(0); return
+            case kVK_ANSI_2: applyPreset(1); return
+            case kVK_ANSI_3: applyPreset(2); return
+            case kVK_ANSI_4: applyPreset(3); return
+            case kVK_ANSI_5: applyFullscreen(); return
+            default: break
+            }
+        }
+        if mods == [.control], Int(event.keyCode) == kVK_RightArrow {
+            cyclePreset()
+            return
+        }
+        if mods == [.control, .shift], chars?.lowercased() == "m" {
+            toggleMax()
+            return
+        }
+        if mods.isEmpty {
+            switch chars {
+            case "1": currentTool = .arrow; return
+            case "2": currentTool = .frame; return
+            case "3": currentTool = .number; return
+            case "0": currentTool = .none; return
+            default: break
+            }
+        }
+        super.keyDown(with: event)
     }
 
     func clearAnnotationsAfterCapture() {
         annotations.removeAll()
         nextNumber = 1
         needsDisplay = true
+    }
+
+    // MARK: - Size presets / fullscreen
+
+    private func applyPreset(_ index: Int) {
+        guard let window else { return }
+        currentPresetIndex = index
+        let size = presets[index]
+        let center = CGPoint(x: window.frame.midX, y: window.frame.midY)
+        let frame = CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
+        window.setFrame(clampToVirtualScreen(frame), display: true)
+        preMaxFrame = nil
+    }
+
+    private func applyFullscreen() {
+        guard let window, let screen = window.screen ?? NSScreen.main else { return }
+        preMaxFrame = window.frame
+        window.setFrame(screen.frame, display: true)
+    }
+
+    private func toggleMax() {
+        guard let window else { return }
+        if let prev = preMaxFrame {
+            window.setFrame(prev, display: true)
+            preMaxFrame = nil
+        } else {
+            applyFullscreen()
+        }
+    }
+
+    private func cyclePreset() {
+        currentPresetIndex = (currentPresetIndex + 1) % presets.count
+        applyPreset(currentPresetIndex)
+    }
+
+    private func clampToVirtualScreen(_ frame: CGRect) -> CGRect {
+        let screenFrame = virtualScreenFrame()
+        var f = frame
+        if f.width > screenFrame.width { f.size.width = screenFrame.width }
+        if f.height > screenFrame.height { f.size.height = screenFrame.height }
+        if f.minX < screenFrame.minX { f.origin.x = screenFrame.minX }
+        if f.maxX > screenFrame.maxX { f.origin.x = screenFrame.maxX - f.width }
+        if f.minY < screenFrame.minY { f.origin.y = screenFrame.minY }
+        if f.maxY > screenFrame.maxY { f.origin.y = screenFrame.maxY - f.height }
+        return f
     }
 
     // MARK: - Snapping (simplified: snaps to the union of all screens' bounds)
