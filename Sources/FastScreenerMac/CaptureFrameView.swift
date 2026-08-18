@@ -15,7 +15,9 @@ final class CaptureFrameView: NSView {
     static let bottomBarHeight: CGFloat = 20
 
     private let edgeMargin: CGFloat = 8
-    private let minSize: CGFloat = 120
+    // Must stay large enough that the left toolbar's 3 stacked buttons
+    // (28pt top-bar gap + 3×30pt) never collide with the bottom bar.
+    private let minSize: CGFloat = 200
     private let snapMargin: CGFloat = 8
     private let borderWidth: CGFloat = 1.5
     private let borderColor = NSColor.systemRed
@@ -183,7 +185,17 @@ final class CaptureFrameView: NSView {
     private func showMenu() {
         let menu = NSMenu()
 
-        menu.addItem(ClosureMenuItem(title: "Capture Now (F4)") { [weak self] in self?.onCaptureRequested?() })
+        for i in 0..<presets.count {
+            let size = presets[i]
+            menu.addItem(ClosureMenuItem(title: "\(Int(size.width))×\(Int(size.height))  (⌥\(i + 1))") { [weak self] in self?.applyPreset(i) })
+        }
+        menu.addItem(ClosureMenuItem(title: "Max Size  (⌃⇧M)") { [weak self] in self?.toggleMax() })
+        menu.addItem(.separator())
+
+        menu.addItem(ClosureMenuItem(title: "Screenshot  (F4)") { [weak self] in self?.onCaptureRequested?() })
+        menu.addItem(ClosureMenuItem(title: "Fullscreen  (⌥5)") { [weak self] in self?.applyFullscreen() })
+        menu.addItem(ClosureMenuItem(title: "Clear  (⌘⇧Z)") { [weak self] in self?.clearAll() })
+        menu.addItem(ClosureMenuItem(title: "Undo  (⌘Z)") { [weak self] in self?.undo() })
         menu.addItem(.separator())
 
         for (title, tool) in [("Arrow", AnnotationTool.arrow), ("Frame", .frame), ("Number", .number), ("None", .none)] {
@@ -191,18 +203,6 @@ final class CaptureFrameView: NSView {
             item.state = (tool == currentTool) ? .on : .off
             menu.addItem(item)
         }
-        menu.addItem(.separator())
-
-        menu.addItem(ClosureMenuItem(title: "Undo (⌘Z)") { [weak self] in self?.undo() })
-        menu.addItem(ClosureMenuItem(title: "Clear All (⌘⇧Z)") { [weak self] in self?.clearAll() })
-        menu.addItem(.separator())
-
-        for i in 0..<presets.count {
-            let size = presets[i]
-            menu.addItem(ClosureMenuItem(title: "Preset \(i + 1): \(Int(size.width))×\(Int(size.height)) (⌥\(i + 1))") { [weak self] in self?.applyPreset(i) })
-        }
-        menu.addItem(ClosureMenuItem(title: "Fullscreen (⌥5)") { [weak self] in self?.applyFullscreen() })
-        menu.addItem(ClosureMenuItem(title: "Toggle Max (⌃⇧M)") { [weak self] in self?.toggleMax() })
         menu.addItem(.separator())
 
         menu.addItem(ClosureMenuItem(title: "Quit") { NSApplication.shared.terminate(nil) })
