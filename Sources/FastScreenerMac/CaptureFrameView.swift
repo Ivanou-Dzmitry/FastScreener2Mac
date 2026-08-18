@@ -1,14 +1,18 @@
 import AppKit
 
 // Draws the frame outline and handles edge/corner drag-resize plus
-// interior drag-move, with snapping to screen edges. Equivalent to the
-// WinForms drag panels around panelScreenArea.
+// interior drag-move (left button), with snapping to screen edges.
+// Middle mouse button places annotations (arrow/frame/number) — handled
+// directly by this view's own otherMouseDown/Dragged/Up, since it's
+// already the topmost window over that screen area; no global event tap
+// needed, unlike the original app's WH_MOUSE_LL hook.
 final class CaptureFrameView: NSView {
     private let edgeMargin: CGFloat = 8
     private let minSize: CGFloat = 80
     private let snapMargin: CGFloat = 8
     private let borderWidth: CGFloat = 2
     private let borderColor = NSColor.systemRed
+    private let annotationColor = NSColor.systemYellow
 
     private enum DragMode {
         case none
@@ -17,13 +21,61 @@ final class CaptureFrameView: NSView {
     }
     private var dragMode: DragMode = .none
 
+    var currentTool: AnnotationTool = .arrow { didSet { needsDisplay = true } }
+    var annotations: [Annotation] = []
+    private var nextNumber = 1
+    private var pendingStart: CGPoint?
+    private var pendingCurrent: CGPoint?
+
+    override var acceptsFirstResponder: Bool { true }
+
     override func draw(_ dirtyRect: NSRect) {
+        for annotation in annotations {
+            annotation.draw(color: annotationColor)
+        }
+        drawPendingPreview()
+
         let inset = borderWidth / 2
         let path = NSBezierPath(rect: bounds.insetBy(dx: inset, dy: inset))
         path.lineWidth = borderWidth
         borderColor.setStroke()
         path.stroke()
+
+        drawStatusLabel()
     }
+
+    private func drawPendingPreview() {
+        guard let start = pendingStart, let current = pendingCurrent else { return }
+        let previewColor = annotationColor.withAlphaComponent(0.6)
+        switch currentTool {
+        case .arrow:
+            Annotation.arrow(start: start, end: current).draw(color: previewColor)
+        case .frame:
+            let rect = CGRect(x: min(start.x, current.x), y: min(start.y, current.y), width: abs(current.x - start.x), height: abs(current.y - start.y))
+            Annotation.frame(rect: rect).draw(color: previewColor)
+        case .none, .number:
+            break
+        }
+    }
+
+    private func drawStatusLabel() {
+        let toolName: String
+        switch currentTool {
+        case .none: toolName = "None"
+        case .arrow: toolName = "Arrow"
+        case .frame: toolName = "Frame"
+        case .number: toolName = "Number"
+        }
+        let text = "Tool: \(toolName)  [1 Arrow 2 Frame 3 Number 0 None | F4 Capture | ⌘Z Undo ⌘⇧Z Clear]"
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.white,
+            .backgroundColor: NSColor.black.withAlphaComponent(0.55),
+        ]
+        text.draw(at: CGPoint(x: 6, y: bounds.height - 18), withAttributes: attrs)
+    }
+
+    // MARK: - Left button: resize / move
 
     override func mouseDown(with event: NSEvent) {
         guard let window = window else { return }
@@ -92,6 +144,82 @@ final class CaptureFrameView: NSView {
         addCursorRect(NSRect(x: 0, y: 0, width: bounds.width, height: edgeMargin), cursor: .resizeUpDown)
         addCursorRect(NSRect(x: 0, y: 0, width: edgeMargin, height: bounds.height), cursor: .resizeLeftRight)
         addCursorRect(NSRect(x: bounds.width - edgeMargin, y: 0, width: edgeMargin, height: bounds.height), cursor: .resizeLeftRight)
+    }
+
+    // MARK: - Middle button: annotations
+
+    override func otherMouseDown(with event: NSEvent) {
+        guard event.buttonNumber == 2 else { return }
+        let p = convert(event.locationInWindow, from: nil)
+        switch currentTool {
+        case .arrow, .frame:
+            pendingStart = p
+            pendingCurrent = p
+        case .number:
+            annotations.append(.number(point: p, value: nextNumber))
+            nextNumber += 1
+        case .none:
+            break
+        }
+        needsDisplay = true
+    }
+
+    override func otherMouseDragged(with event: NSEvent) {
+        guard pendingStart != nil else { return }
+        pendingCurrent = convert(event.locationInWindow, from: nil)
+        needsDisplay = true
+    }
+
+    override func otherMouseUp(with event: NSEvent) {
+        defer {
+            pendingStart = nil
+            pendingCurrent = nil
+            needsDisplay = true
+        }
+        guard let start = pendingStart else { return }
+        let end = convert(event.locationInWindow, from: nil)
+        guard hypot(end.x - start.x, end.y - start.y) > 4 else { return }
+
+        switch currentTool {
+        case .arrow:
+            annotations.append(.arrow(start: start, end: end))
+        case .frame:
+            let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y), width: abs(end.x - start.x), height: abs(end.y - start.y))
+            annotations.append(.frame(rect: rect))
+        case .none, .number:
+            break
+        }
+    }
+
+    // MARK: - Keyboard: tool switching + undo/clear
+
+    override func keyDown(with event: NSEvent) {
+        guard let chars = event.charactersIgnoringModifiers else { return super.keyDown(with: event) }
+
+        if event.modifierFlags.contains(.command), chars == "z" {
+            if event.modifierFlags.contains(.shift) {
+                annotations.removeAll()
+                nextNumber = 1
+            } else {
+                _ = annotations.popLast()
+            }
+            needsDisplay = true
+            return
+        }
+
+        switch chars {
+        case "1": currentTool = .arrow
+        case "2": currentTool = .frame
+        case "3": currentTool = .number
+        case "0": currentTool = .none
+        default: super.keyDown(with: event)
+        }
+    }
+
+    func clearAnnotationsAfterCapture() {
+        annotations.removeAll()
+        nextNumber = 1
+        needsDisplay = true
     }
 
     // MARK: - Snapping (simplified: snaps to the union of all screens' bounds)

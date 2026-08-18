@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         window = CaptureWindow(contentRect: CGRect(origin: origin, size: size))
         window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(window.contentView)
         NSApp.activate(ignoringOtherApps: true)
 
         HotkeyManager.shared.register(keyCode: kVK_F4) { [weak self] in
@@ -24,18 +25,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func captureAndSave() {
-        guard let window else { return }
+        guard let window, let frameView = window.contentView as? CaptureFrameView else { return }
         let rect = window.frame
         let windowNumber = window.windowNumber
+        let annotations = frameView.annotations
 
         Task {
             do {
-                let image = try await ScreenCapture.captureRect(rect, excludingWindowNumber: windowNumber)
+                let rawImage = try await ScreenCapture.captureRect(rect, excludingWindowNumber: windowNumber)
+                let finalImage = Self.composite(annotations: annotations, onto: rawImage, size: rect.size)
 
                 NSPasteboard.general.clearContents()
-                NSPasteboard.general.writeObjects([image])
+                NSPasteboard.general.writeObjects([finalImage])
 
-                if let tiff = image.tiffRepresentation,
+                if let tiff = finalImage.tiffRepresentation,
                    let rep = NSBitmapImageRep(data: tiff),
                    let png = rep.representation(using: .png, properties: [:]) {
                     let dir = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0]
@@ -47,6 +50,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("Capture failed: \(error)")
             }
         }
+    }
+
+    // Bakes the drawn annotations into the captured pixels (the frame
+    // border/status label are UI chrome and are never included, since the
+    // window itself is excluded from the raw capture).
+    private static func composite(annotations: [Annotation], onto image: NSImage, size: CGSize) -> NSImage {
+        let output = NSImage(size: size)
+        output.lockFocus()
+        image.draw(in: CGRect(origin: .zero, size: size))
+        for annotation in annotations {
+            annotation.draw()
+        }
+        output.unlockFocus()
+        return output
     }
 
     private static func timestamp() -> String {
