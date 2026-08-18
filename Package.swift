@@ -9,7 +9,8 @@ let package = Package(
             name: "FastScreenerMacSpike"
         ),
         .executableTarget(
-            name: "FastScreenerMac"
+            name: "FastScreenerMac",
+            resources: [.copy("Resources")]
         ),
     ]
 )

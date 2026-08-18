@@ -7,10 +7,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screen = NSScreen.main!.frame
-        let size = CGSize(width: 800, height: 450)
-        let origin = CGPoint(x: screen.midX - size.width / 2, y: screen.midY - size.height / 2)
+        let captureSize = CGSize(width: 800, height: 450)
+        let windowSize = CGSize(
+            width: captureSize.width + CaptureFrameView.leftBarWidth,
+            height: captureSize.height + CaptureFrameView.topBarHeight + CaptureFrameView.bottomBarHeight
+        )
+        let origin = CGPoint(x: screen.midX - windowSize.width / 2, y: screen.midY - windowSize.height / 2)
 
-        window = CaptureWindow(contentRect: CGRect(origin: origin, size: size))
+        window = CaptureWindow(contentRect: CGRect(origin: origin, size: windowSize))
+        if let frameView = window.contentView as? CaptureFrameView {
+            frameView.onCaptureRequested = { [weak self] in self?.captureAndSave() }
+        }
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(window.contentView)
         NSApp.activate(ignoringOtherApps: true)
@@ -26,14 +33,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func captureAndSave() {
         guard let window, let frameView = window.contentView as? CaptureFrameView else { return }
-        let rect = window.frame
+        let interior = frameView.captureRect
+        let screenRect = CGRect(
+            x: window.frame.origin.x + interior.origin.x,
+            y: window.frame.origin.y + interior.origin.y,
+            width: interior.width,
+            height: interior.height
+        )
         let windowNumber = window.windowNumber
         let annotations = frameView.annotations
+        let filenameOverride = frameView.filenameOverride
 
         Task {
             do {
-                let rawImage = try await ScreenCapture.captureRect(rect, excludingWindowNumber: windowNumber)
-                let finalImage = Self.composite(annotations: annotations, onto: rawImage, size: rect.size)
+                let rawImage = try await ScreenCapture.captureRect(screenRect, excludingWindowNumber: windowNumber)
+                let finalImage = Self.composite(annotations: annotations, onto: rawImage, size: interior.size, offset: interior.origin)
 
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.writeObjects([finalImage])
@@ -42,7 +56,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                    let rep = NSBitmapImageRep(data: tiff),
                    let png = rep.representation(using: .png, properties: [:]) {
                     let dir = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0]
-                    let url = dir.appendingPathComponent("FastScreener_\(Self.timestamp()).png")
+                    let trimmed = filenameOverride.trimmingCharacters(in: .whitespaces)
+                    let name: String
+                    if trimmed.isEmpty {
+                        name = "FastScreener_\(Self.timestamp()).png"
+                    } else {
+                        name = trimmed.hasSuffix(".png") ? trimmed : "\(trimmed).png"
+                    }
+                    let url = dir.appendingPathComponent(name)
                     try png.write(to: url)
                     print("Captured + copied to clipboard -> \(url.path)")
                 }
@@ -52,16 +73,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // Bakes the drawn annotations into the captured pixels (the frame
-    // border/status label are UI chrome and are never included, since the
-    // window itself is excluded from the raw capture).
-    private static func composite(annotations: [Annotation], onto image: NSImage, size: CGSize) -> NSImage {
+    // Bakes the drawn annotations into the captured pixels, shifting them
+    // from window-local coordinates (where the capture rect starts at
+    // `offset`, not the origin) into the captured image's own coordinate
+    // space (which starts at 0,0). The chrome bars are never included,
+    // since the window itself is excluded from the raw capture.
+    private static func composite(annotations: [Annotation], onto image: NSImage, size: CGSize, offset: CGPoint) -> NSImage {
         let output = NSImage(size: size)
         output.lockFocus()
         image.draw(in: CGRect(origin: .zero, size: size))
-        for annotation in annotations {
-            annotation.draw()
+
+        if !annotations.isEmpty, let context = NSGraphicsContext.current {
+            context.saveGraphicsState()
+            let transform = NSAffineTransform()
+            transform.translateX(by: -offset.x, yBy: -offset.y)
+            transform.concat()
+            for annotation in annotations {
+                annotation.draw()
+            }
+            context.restoreGraphicsState()
         }
+
         output.unlockFocus()
         return output
     }

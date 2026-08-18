@@ -1,19 +1,26 @@
 import AppKit
 import Carbon.HIToolbox
 
-// Draws the frame outline and handles edge/corner drag-resize plus
-// interior drag-move (left button), with snapping to screen edges.
-// Middle mouse button places annotations (arrow/frame/number) — handled
-// directly by this view's own otherMouseDown/Dragged/Up, since it's
-// already the topmost window over that screen area; no global event tap
-// needed, unlike the original app's WH_MOUSE_LL hook.
+// The whole window's content view. Bounds = chrome (top bar, left bar,
+// bottom bar) + the interior capture rect, matching the original
+// FastScreener2 layout: dashed-outlined capture area in the middle,
+// hamburger/capture/filename/close along the top, tool icons down the
+// left, status text along the bottom. Only the interior rect is ever
+// captured — the window itself is excluded from ScreenCaptureKit's
+// output, so all this chrome never leaks into a screenshot regardless
+// of where it's drawn.
 final class CaptureFrameView: NSView {
+    static let topBarHeight: CGFloat = 28
+    static let leftBarWidth: CGFloat = 32
+    static let bottomBarHeight: CGFloat = 20
+
     private let edgeMargin: CGFloat = 8
-    private let minSize: CGFloat = 80
+    private let minSize: CGFloat = 120
     private let snapMargin: CGFloat = 8
-    private let borderWidth: CGFloat = 2
+    private let borderWidth: CGFloat = 1.5
     private let borderColor = NSColor.systemRed
     private let annotationColor = NSColor.systemYellow
+    private let chromeColor = NSColor(calibratedWhite: 0.1, alpha: 0.92)
 
     private enum DragMode {
         case none
@@ -22,8 +29,13 @@ final class CaptureFrameView: NSView {
     }
     private var dragMode: DragMode = .none
 
-    var currentTool: AnnotationTool = .arrow { didSet { needsDisplay = true } }
-    var annotations: [Annotation] = []
+    var currentTool: AnnotationTool = .arrow {
+        didSet {
+            needsDisplay = true
+            updateToolButtonHighlight()
+        }
+    }
+    var annotations: [Annotation] = [] { didSet { needsDisplay = true } }
     private var nextNumber = 1
     private var pendingStart: CGPoint?
     private var pendingCurrent: CGPoint?
@@ -38,21 +50,52 @@ final class CaptureFrameView: NSView {
     private var currentPresetIndex = 0
     private var preMaxFrame: CGRect?
 
+    var onCaptureRequested: (() -> Void)?
+    private var filenameField: NSTextField!
+    var filenameOverride: String { filenameField.stringValue }
+
+    private var hamburgerButton: IconButton!
+    private var toolButtons: [AnnotationTool: IconButton] = [:]
+
     override var acceptsFirstResponder: Bool { true }
 
+    var captureRect: CGRect {
+        CGRect(
+            x: Self.leftBarWidth,
+            y: Self.bottomBarHeight,
+            width: max(0, bounds.width - Self.leftBarWidth),
+            height: max(0, bounds.height - Self.topBarHeight - Self.bottomBarHeight)
+        )
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setupChrome()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    // MARK: - Drawing
+
     override func draw(_ dirtyRect: NSRect) {
+        chromeColor.setFill()
+        NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
+        NSBezierPath(rect: CGRect(x: Self.leftBarWidth, y: 0, width: bounds.width - Self.leftBarWidth, height: Self.bottomBarHeight)).fill()
+
         for annotation in annotations {
             annotation.draw(color: annotationColor)
         }
         drawPendingPreview()
 
-        let inset = borderWidth / 2
-        let path = NSBezierPath(rect: bounds.insetBy(dx: inset, dy: inset))
-        path.lineWidth = borderWidth
+        let rect = captureRect
+        let dashPath = NSBezierPath(rect: rect.insetBy(dx: borderWidth / 2, dy: borderWidth / 2))
+        dashPath.setLineDash([5, 3], count: 2, phase: 0)
+        dashPath.lineWidth = borderWidth
         borderColor.setStroke()
-        path.stroke()
+        dashPath.stroke()
 
-        drawStatusLabel()
+        drawStatusText()
     }
 
     private func drawPendingPreview() {
@@ -69,21 +112,102 @@ final class CaptureFrameView: NSView {
         }
     }
 
-    private func drawStatusLabel() {
-        let toolName: String
-        switch currentTool {
-        case .none: toolName = "None"
-        case .arrow: toolName = "Arrow"
-        case .frame: toolName = "Frame"
-        case .number: toolName = "Number"
-        }
-        let text = "Tool: \(toolName)  [1/2/3/0 Tool | F4 Capture | ⌘Z Undo ⌘⇧Z Clear | ⌥1-4 Preset ⌥5 Fullscreen ⌃⇧M Max ⌃→ Cycle]"
+    private func drawStatusText() {
+        let origin = window?.frame.origin ?? .zero
+        let rect = captureRect
+        let text = "Pos:(\(Int(origin.x)),\(Int(origin.y)))  Size:\(Int(rect.width))×\(Int(rect.height))  Elements:\(annotations.count)"
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11),
-            .foregroundColor: NSColor.white,
-            .backgroundColor: NSColor.black.withAlphaComponent(0.55),
+            .font: NSFont.systemFont(ofSize: 10),
+            .foregroundColor: NSColor(calibratedWhite: 0.85, alpha: 1),
         ]
-        text.draw(at: CGPoint(x: 6, y: bounds.height - 18), withAttributes: attrs)
+        text.draw(at: CGPoint(x: Self.leftBarWidth + 6, y: 4), withAttributes: attrs)
+    }
+
+    // MARK: - Chrome setup
+
+    private func setupChrome() {
+        let topY = bounds.height - Self.topBarHeight
+
+        hamburgerButton = IconButton(icon: IconLoader.load("menu_icon"), frame: CGRect(x: 3, y: topY + 3, width: 22, height: 22))
+        hamburgerButton.autoresizingMask = [.minYMargin]
+        hamburgerButton.onClick = { [weak self] in self?.showMenu() }
+        addSubview(hamburgerButton)
+
+        let captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: 29, y: topY + 3, width: 22, height: 22))
+        captureButton.autoresizingMask = [.minYMargin]
+        captureButton.onClick = { [weak self] in self?.onCaptureRequested?() }
+        addSubview(captureButton)
+
+        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: bounds.width - 25, y: topY + 3, width: 22, height: 22))
+        closeButton.autoresizingMask = [.minXMargin, .minYMargin]
+        closeButton.onClick = { NSApplication.shared.terminate(nil) }
+        addSubview(closeButton)
+
+        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: bounds.width - 51, y: topY + 3, width: 22, height: 22))
+        settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
+        settingsButton.onClick = { print("Settings: not built yet") }
+        addSubview(settingsButton)
+
+        filenameField = NSTextField(frame: CGRect(x: 55, y: topY + 4, width: bounds.width - 55 - 55, height: 20))
+        filenameField.placeholderString = "File name (optional)"
+        filenameField.font = .systemFont(ofSize: 11)
+        filenameField.autoresizingMask = [.width, .minYMargin]
+        filenameField.usesSingleLineMode = true
+        addSubview(filenameField)
+
+        let toolIcons: [(AnnotationTool, String)] = [
+            (.arrow, "arrow_icon"),
+            (.frame, "frame_icon"),
+            (.number, "number_icon"),
+        ]
+        for (index, pair) in toolIcons.enumerated() {
+            let (tool, iconName) = pair
+            let y = topY - 8 - CGFloat(index) * 30
+            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 4, y: y, width: Self.leftBarWidth - 8, height: 24))
+            button.autoresizingMask = [.maxYMargin]
+            button.onClick = { [weak self] in self?.currentTool = tool }
+            addSubview(button)
+            toolButtons[tool] = button
+        }
+        updateToolButtonHighlight()
+    }
+
+    private func updateToolButtonHighlight() {
+        for (tool, button) in toolButtons {
+            button.isActive = (tool == currentTool)
+        }
+    }
+
+    // MARK: - Menu
+
+    private func showMenu() {
+        let menu = NSMenu()
+
+        menu.addItem(ClosureMenuItem(title: "Capture Now (F4)") { [weak self] in self?.onCaptureRequested?() })
+        menu.addItem(.separator())
+
+        for (title, tool) in [("Arrow", AnnotationTool.arrow), ("Frame", .frame), ("Number", .number), ("None", .none)] {
+            let item = ClosureMenuItem(title: title) { [weak self] in self?.currentTool = tool }
+            item.state = (tool == currentTool) ? .on : .off
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+
+        menu.addItem(ClosureMenuItem(title: "Undo (⌘Z)") { [weak self] in self?.undo() })
+        menu.addItem(ClosureMenuItem(title: "Clear All (⌘⇧Z)") { [weak self] in self?.clearAll() })
+        menu.addItem(.separator())
+
+        for i in 0..<presets.count {
+            let size = presets[i]
+            menu.addItem(ClosureMenuItem(title: "Preset \(i + 1): \(Int(size.width))×\(Int(size.height)) (⌥\(i + 1))") { [weak self] in self?.applyPreset(i) })
+        }
+        menu.addItem(ClosureMenuItem(title: "Fullscreen (⌥5)") { [weak self] in self?.applyFullscreen() })
+        menu.addItem(ClosureMenuItem(title: "Toggle Max (⌃⇧M)") { [weak self] in self?.toggleMax() })
+        menu.addItem(.separator())
+
+        menu.addItem(ClosureMenuItem(title: "Quit") { NSApplication.shared.terminate(nil) })
+
+        menu.popUp(positioning: nil, at: CGPoint(x: hamburgerButton.frame.minX, y: hamburgerButton.frame.minY), in: self)
     }
 
     // MARK: - Left button: resize / move
@@ -116,6 +240,7 @@ final class CaptureFrameView: NSView {
                 size: window.frame.size
             )
             window.setFrameOrigin(newOrigin)
+            needsDisplay = true
 
         case .resize(let left, let right, let top, let bottom, let startFrame, let startPoint):
             let dx = mouseLoc.x - startPoint.x
@@ -157,11 +282,13 @@ final class CaptureFrameView: NSView {
         addCursorRect(NSRect(x: bounds.width - edgeMargin, y: 0, width: edgeMargin, height: bounds.height), cursor: .resizeLeftRight)
     }
 
-    // MARK: - Middle button: annotations
+    // MARK: - Middle button: annotations (only within the capture rect)
 
     override func otherMouseDown(with event: NSEvent) {
         guard event.buttonNumber == 2 else { return }
         let p = convert(event.locationInWindow, from: nil)
+        guard captureRect.contains(p) else { return }
+
         switch currentTool {
         case .arrow, .frame:
             pendingStart = p
@@ -208,17 +335,9 @@ final class CaptureFrameView: NSView {
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let chars = event.charactersIgnoringModifiers
 
-        if mods == [.command], chars == "z" {
-            _ = annotations.popLast()
-            needsDisplay = true
-            return
-        }
-        if mods == [.command, .shift], chars == "z" {
-            annotations.removeAll()
-            nextNumber = 1
-            needsDisplay = true
-            return
-        }
+        if mods == [.command], chars == "z" { undo(); return }
+        if mods == [.command, .shift], chars == "z" { clearAll(); return }
+
         if mods == [.option] {
             switch Int(event.keyCode) {
             case kVK_ANSI_1: applyPreset(0); return
@@ -249,10 +368,13 @@ final class CaptureFrameView: NSView {
         super.keyDown(with: event)
     }
 
-    func clearAnnotationsAfterCapture() {
+    private func undo() {
+        _ = annotations.popLast()
+    }
+
+    private func clearAll() {
         annotations.removeAll()
         nextNumber = 1
-        needsDisplay = true
     }
 
     // MARK: - Size presets / fullscreen
