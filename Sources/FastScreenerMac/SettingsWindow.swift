@@ -98,7 +98,6 @@ final class SettingsWindow: NSWindow {
         self.init(contentRect: CGRect(x: 0, y: 0, width: 380, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         title = "Settings"
         isReleasedWhenClosed = false
-        level = .floating
         minSize = CGSize(width: 340, height: 240)
 
         let settings = AppSettings.shared
@@ -137,6 +136,7 @@ final class SettingsWindow: NSWindow {
         stack.addArrangedSubview(CheckboxControl(title: "Clear elements after screenshot", isOn: settings.clearElementsAfterCapture) { settings.clearElementsAfterCapture = $0 })
 
         let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: container.topAnchor),
