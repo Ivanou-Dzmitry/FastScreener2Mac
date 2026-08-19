@@ -12,6 +12,7 @@ import Carbon.HIToolbox
 final class CaptureFrameView: NSView {
     static let topBarHeight: CGFloat = 28
     static let leftBarWidth: CGFloat = 32
+    static let rightBarWidth: CGFloat = 32
     static let bottomBarHeight: CGFloat = 20
     static let filenameMaxLength = 42
 
@@ -19,6 +20,9 @@ final class CaptureFrameView: NSView {
     private let borderWidth: CGFloat = 1.5
     private let borderColor = NSColor.black
     private let settings = AppSettings.shared
+    // Close/minimize/settings always sit on this fixed grey, independent
+    // of the user-configurable Panel Color (chromeColor).
+    private let fixedControlBackground = NSColor(calibratedWhite: 0.55, alpha: 1)
 
     private enum DragMode {
         case none
@@ -60,7 +64,7 @@ final class CaptureFrameView: NSView {
         CGRect(
             x: Self.leftBarWidth,
             y: Self.bottomBarHeight,
-            width: max(0, bounds.width - Self.leftBarWidth),
+            width: max(0, bounds.width - Self.leftBarWidth - Self.rightBarWidth),
             height: max(0, bounds.height - Self.topBarHeight - Self.bottomBarHeight)
         )
     }
@@ -83,6 +87,13 @@ final class CaptureFrameView: NSView {
         settings.chromeColor.setFill()
         NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
+        NSBezierPath(rect: CGRect(x: bounds.width - Self.rightBarWidth, y: 0, width: Self.rightBarWidth, height: bounds.height)).fill()
+
+        // Settings/minimize/close always sit on fixed grey, unaffected
+        // by Panel Color — painted over the chrome fill in just that
+        // top-right slice.
+        fixedControlBackground.setFill()
+        NSBezierPath(rect: CGRect(x: bounds.width - 82, y: bounds.height - Self.topBarHeight, width: 82, height: Self.topBarHeight)).fill()
 
         for annotation in annotations {
             drawAnnotation(annotation)
@@ -131,7 +142,14 @@ final class CaptureFrameView: NSView {
             .foregroundColor: NSColor(calibratedWhite: 0.85, alpha: 1),
             .backgroundColor: NSColor.black.withAlphaComponent(0.55),
         ]
-        text.draw(at: CGPoint(x: Self.leftBarWidth + 6, y: 4), withAttributes: attrs)
+        // Centered within the transparent middle segment of the bottom
+        // bar (between the left toolbar and the right bar), not
+        // left-aligned right after the left bar.
+        let size = text.size(withAttributes: attrs)
+        let zoneMinX = Self.leftBarWidth
+        let zoneMaxX = bounds.width - Self.rightBarWidth
+        let x = zoneMinX + (zoneMaxX - zoneMinX - size.width) / 2
+        text.draw(at: CGPoint(x: x, y: 4), withAttributes: attrs)
     }
 
     // MARK: - Chrome setup

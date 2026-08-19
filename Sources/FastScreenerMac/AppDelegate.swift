@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let screen = NSScreen.main!.frame
         let captureSize = CGSize(width: 800, height: 450)
         let windowSize = CGSize(
-            width: captureSize.width + CaptureFrameView.leftBarWidth,
+            width: captureSize.width + CaptureFrameView.leftBarWidth + CaptureFrameView.rightBarWidth,
             height: captureSize.height + CaptureFrameView.topBarHeight + CaptureFrameView.bottomBarHeight
         )
         let origin = CGPoint(x: screen.midX - windowSize.width / 2, y: screen.midY - windowSize.height / 2)
