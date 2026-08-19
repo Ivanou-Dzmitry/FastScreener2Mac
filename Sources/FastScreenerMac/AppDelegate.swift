@@ -84,16 +84,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     ? interior.size
                     : CGSize(width: interior.width * backingScale, height: interior.height * backingScale)
 
-                // PNG 32bpp keeps alpha; 24bpp drops it; 8bpp is
-                // approximated as grayscale (NSBitmapImageRep has no
-                // simple indexed-palette API to match Windows' true
-                // 8bpp/256-color PNGs). JPEG has no alpha channel either
-                // way.
+                // PNG 32bpp keeps alpha; 24bpp/8bpp both drop it (macOS
+                // has no simple indexed-palette API to match Windows'
+                // true 8bpp/256-color PNGs, and an earlier grayscale-
+                // colorspace attempt for it turned out unreliable — an
+                // RGB rep is the well-tested path). JPEG has no alpha
+                // channel either way.
                 let isJPEG = settings.fileFormat == "jpg"
                 let wantsAlpha = !isJPEG && settings.pngDepth == "32bpp"
-                let wantsGrayscale = !isJPEG && settings.pngDepth == "8bpp"
 
-                guard let rep = Self.pixelExactBitmap(from: finalImage, pixelSize: outputPixelSize, hasAlpha: wantsAlpha, grayscale: wantsGrayscale) else {
+                guard let rep = Self.pixelExactBitmap(from: finalImage, pixelSize: outputPixelSize, hasAlpha: wantsAlpha) else {
                     print("Capture failed: could not render output bitmap")
                     return
                 }
@@ -144,7 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // `pixelSize` (rep.size set to match, so it's 1 point == 1 pixel),
     // downsampling/converting from whatever native resolution/format
     // `image` actually carries.
-    private static func pixelExactBitmap(from image: NSImage, pixelSize: CGSize, hasAlpha: Bool, grayscale: Bool) -> NSBitmapImageRep? {
+    private static func pixelExactBitmap(from image: NSImage, pixelSize: CGSize, hasAlpha: Bool) -> NSBitmapImageRep? {
         let width = max(1, Int(pixelSize.width.rounded()))
         let height = max(1, Int(pixelSize.height.rounded()))
         guard let rep = NSBitmapImageRep(
@@ -152,10 +152,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pixelsWide: width,
             pixelsHigh: height,
             bitsPerSample: 8,
-            samplesPerPixel: grayscale ? 1 : (hasAlpha ? 4 : 3),
-            hasAlpha: grayscale ? false : hasAlpha,
+            samplesPerPixel: hasAlpha ? 4 : 3,
+            hasAlpha: hasAlpha,
             isPlanar: false,
-            colorSpaceName: grayscale ? .deviceWhite : .deviceRGB,
+            colorSpaceName: .deviceRGB,
             bytesPerRow: 0,
             bitsPerPixel: 0
         ) else { return nil }
