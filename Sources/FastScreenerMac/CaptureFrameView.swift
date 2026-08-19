@@ -47,6 +47,7 @@ final class CaptureFrameView: NSView {
 
     var onCaptureRequested: (() -> Void)?
     var onSettingsRequested: (() -> Void)?
+    var onOpenFolderRequested: (() -> Void)?
     private var filenameField: NSTextField!
     var filenameOverride: String { filenameField.stringValue }
 
@@ -117,6 +118,7 @@ final class CaptureFrameView: NSView {
     }
 
     private func drawStatusText() {
+        guard settings.showInfoLabel else { return }
         let origin = window?.frame.origin ?? .zero
         let rect = captureRect
         let text = "Pos:(\(Int(origin.x)),\(Int(origin.y)))  Size:\(Int(rect.width))×\(Int(rect.height))  Elements:\(annotations.count)"
@@ -206,6 +208,10 @@ final class CaptureFrameView: NSView {
 
     // MARK: - Menu
 
+    // Mirrors the original's hamburger menu structure/order exactly.
+    // Everything wired to a working feature is live; everything else
+    // (Text, Watermark, Guidelines, Help) is a disabled stub, since
+    // those tools aren't built yet.
     private func showMenu() {
         let menu = NSMenu()
 
@@ -219,19 +225,46 @@ final class CaptureFrameView: NSView {
         menu.addItem(ClosureMenuItem(title: "Screenshot  (F4)") { [weak self] in self?.onCaptureRequested?() })
         menu.addItem(ClosureMenuItem(title: "Fullscreen  (⌥5)") { [weak self] in self?.applyFullscreen() })
         menu.addItem(ClosureMenuItem(title: "Clear  (⌘⇧Z)") { [weak self] in self?.clearAll() })
-        menu.addItem(ClosureMenuItem(title: "Undo  (⌘Z)") { [weak self] in self?.undo() })
+        let undoItem = ClosureMenuItem(title: "Undo  (⌘Z)") { [weak self] in self?.undo() }
+        undoItem.isEnabled = !annotations.isEmpty
+        menu.addItem(undoItem)
         menu.addItem(.separator())
 
-        for (title, tool) in [("Arrow", AnnotationTool.arrow), ("Frame", .frame), ("Number", .number), ("None", .none)] {
+        for (title, tool) in [("Arrow", AnnotationTool.arrow), ("Frame", .frame), ("Number", .number)] {
             let item = ClosureMenuItem(title: title) { [weak self] in self?.currentTool = tool }
             item.state = (tool == currentTool) ? .on : .off
             menu.addItem(item)
         }
+        menu.addItem(Self.stub("Text"))
+        menu.addItem(Self.stub("Watermark"))
         menu.addItem(.separator())
 
-        menu.addItem(ClosureMenuItem(title: "Quit") { NSApplication.shared.terminate(nil) })
+        menu.addItem(Self.stub("Guidelines"))
+        let saveToFileItem = ClosureMenuItem(title: "Save to File") { [weak self] in
+            self?.settings.saveToFile.toggle()
+        }
+        saveToFileItem.state = settings.saveToFile ? .on : .off
+        menu.addItem(saveToFileItem)
+        menu.addItem(ClosureMenuItem(title: "Open Folder with Files") { [weak self] in self?.onOpenFolderRequested?() })
+        menu.addItem(.separator())
+
+        let showInfoItem = ClosureMenuItem(title: "Show Info") { [weak self] in
+            self?.settings.showInfoLabel.toggle()
+            self?.needsDisplay = true
+        }
+        showInfoItem.state = settings.showInfoLabel ? .on : .off
+        menu.addItem(showInfoItem)
+        menu.addItem(ClosureMenuItem(title: "Settings") { [weak self] in self?.onSettingsRequested?() })
+        menu.addItem(Self.stub("Help  (F1)"))
+        menu.addItem(ClosureMenuItem(title: "Exit") { NSApplication.shared.terminate(nil) })
 
         menu.popUp(positioning: nil, at: CGPoint(x: hamburgerButton.frame.minX, y: hamburgerButton.frame.minY), in: self)
+    }
+
+    private static func stub(_ title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
     }
 
     // MARK: - Left button: resize / move

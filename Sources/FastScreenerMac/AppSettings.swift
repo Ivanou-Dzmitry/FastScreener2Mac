@@ -34,6 +34,8 @@ final class AppSettings {
 
     var chromeColor: NSColor { didSet { save() } } // top/left/bottom bar background ("Panel Color" in the original)
     var clearElementsAfterCapture: Bool { didSet { save() } }
+    var saveToFile: Bool { didSet { save() } } // if off, F4 only copies to clipboard
+    var showInfoLabel: Bool { didSet { save() } } // the Pos/Size/Elements status text
 
     var presetSizes: [CGSize] { didSet { save() } } // the 4 Alt+1..4 sizes ("Sizes" category in the original)
 
@@ -53,6 +55,8 @@ final class AppSettings {
 
         chromeColor = Self.loadColor(key: "chromeColor") ?? NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 0.92) // SlateGray
         clearElementsAfterCapture = defaults.object(forKey: "clearElementsAfterCapture") as? Bool ?? true
+        saveToFile = defaults.object(forKey: "saveToFile") as? Bool ?? true
+        showInfoLabel = defaults.object(forKey: "showInfoLabel") as? Bool ?? true
 
         presetSizes = Self.loadPresetSizes() ?? Self.defaultProfileSizes
     }
@@ -66,6 +70,8 @@ final class AppSettings {
         defaults.set(Double(numberFontSize), forKey: "numberFontSize")
         defaults.set(numberFontFamily, forKey: "numberFontFamily")
         defaults.set(clearElementsAfterCapture, forKey: "clearElementsAfterCapture")
+        defaults.set(saveToFile, forKey: "saveToFile")
+        defaults.set(showInfoLabel, forKey: "showInfoLabel")
         defaults.set(presetSizes.map { Double($0.width) }, forKey: "presetWidths")
         defaults.set(presetSizes.map { Double($0.height) }, forKey: "presetHeights")
         Self.saveColor(arrowColor, key: "arrowColor")
@@ -111,6 +117,8 @@ final class AppSettings {
         var numberFontFamily: String
         var chromeColor: Data
         var clearElementsAfterCapture: Bool
+        var saveToFile: Bool
+        var showInfoLabel: Bool
         var presetWidths: [Double]
         var presetHeights: [Double]
     }
@@ -122,6 +130,7 @@ final class AppSettings {
             frameFixedWidth: frameFixedWidth, frameFixedHeight: frameFixedHeight,
             numberColor: Self.encode(numberColor), numberFontSize: numberFontSize, numberFontFamily: numberFontFamily,
             chromeColor: Self.encode(chromeColor), clearElementsAfterCapture: clearElementsAfterCapture,
+            saveToFile: saveToFile, showInfoLabel: showInfoLabel,
             presetWidths: presetSizes.map { Double($0.width) }, presetHeights: presetSizes.map { Double($0.height) }
         )
     }
@@ -139,6 +148,8 @@ final class AppSettings {
         numberFontFamily = snapshot.numberFontFamily
         chromeColor = Self.decode(snapshot.chromeColor) ?? chromeColor
         clearElementsAfterCapture = snapshot.clearElementsAfterCapture
+        saveToFile = snapshot.saveToFile
+        showInfoLabel = snapshot.showInfoLabel
         if snapshot.presetWidths.count == snapshot.presetHeights.count, !snapshot.presetWidths.isEmpty {
             presetSizes = zip(snapshot.presetWidths, snapshot.presetHeights).map { CGSize(width: $0, height: $1) }
         }
@@ -194,6 +205,8 @@ final class AppSettings {
         numberFontFamily = ""
         chromeColor = NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 0.92)
         clearElementsAfterCapture = true
+        saveToFile = true
+        showInfoLabel = true
         presetSizes = Self.defaultProfileSizes
     }
 }

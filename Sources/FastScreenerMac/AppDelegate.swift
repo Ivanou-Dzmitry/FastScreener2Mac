@@ -6,6 +6,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: CaptureWindow!
     var settingsWindow: SettingsWindow!
 
+    static let capturesDirectory = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0]
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screen = NSScreen.main!.frame
         let captureSize = CGSize(width: 800, height: 450)
@@ -19,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let frameView = window.contentView as? CaptureFrameView {
             frameView.onCaptureRequested = { [weak self] in self?.captureAndSave() }
             frameView.onSettingsRequested = { [weak self] in self?.showSettings() }
+            frameView.onOpenFolderRequested = { NSWorkspace.shared.open(AppDelegate.capturesDirectory) }
         }
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(window.contentView)
@@ -63,10 +66,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.writeObjects([finalImage])
 
-                if let tiff = finalImage.tiffRepresentation,
+                if AppSettings.shared.saveToFile,
+                   let tiff = finalImage.tiffRepresentation,
                    let rep = NSBitmapImageRep(data: tiff),
                    let png = rep.representation(using: .png, properties: [:]) {
-                    let dir = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0]
                     let trimmed = filenameOverride.trimmingCharacters(in: .whitespaces)
                     let name: String
                     if trimmed.isEmpty {
@@ -74,9 +77,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     } else {
                         name = trimmed.hasSuffix(".png") ? trimmed : "\(trimmed).png"
                     }
-                    let url = dir.appendingPathComponent(name)
+                    let url = Self.capturesDirectory.appendingPathComponent(name)
                     try png.write(to: url)
                     print("Captured + copied to clipboard -> \(url.path)")
+                } else {
+                    print("Captured + copied to clipboard (file save off)")
                 }
 
                 if AppSettings.shared.clearElementsAfterCapture {
