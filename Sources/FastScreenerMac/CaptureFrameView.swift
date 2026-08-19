@@ -18,8 +18,8 @@ final class CaptureFrameView: NSView {
     private let snapMargin: CGFloat = 8
     private let borderWidth: CGFloat = 1.5
     private let borderColor = NSColor.black
-    private let annotationColor = NSColor.systemYellow
     private let chromeColor = NSColor(calibratedWhite: 0.1, alpha: 0.92)
+    private let settings = AppSettings.shared
 
     private enum DragMode {
         case none
@@ -35,8 +35,10 @@ final class CaptureFrameView: NSView {
     }
     var annotations: [Annotation] = [] { didSet { needsDisplay = true } }
     private var nextNumber = 1
-    private var pendingStart: CGPoint?
-    private var pendingCurrent: CGPoint?
+    private var pendingStart: CGPoint? // frame drag start
+    private var pendingCurrent: CGPoint? // frame drag current / arrow drag current
+    private var arrowAnchor: CGPoint? // arrow's fixed end point (the click location)
+    private var lastArrowDirection = 1 // 1=↗ 2=↘ 3=↙ 4=↖, persists as the default for plain clicks
 
     // Alt+1..4 apply these, Alt+5 is fullscreen, Ctrl+Right cycles them.
     private let presets: [CGSize] = [
@@ -49,6 +51,7 @@ final class CaptureFrameView: NSView {
     private var preMaxFrame: CGRect?
 
     var onCaptureRequested: (() -> Void)?
+    var onSettingsRequested: (() -> Void)?
     private var filenameField: NSTextField!
     var filenameOverride: String { filenameField.stringValue }
 
@@ -82,7 +85,7 @@ final class CaptureFrameView: NSView {
         NSBezierPath(rect: CGRect(x: Self.leftBarWidth, y: 0, width: bounds.width - Self.leftBarWidth, height: Self.bottomBarHeight)).fill()
 
         for annotation in annotations {
-            annotation.draw(color: annotationColor)
+            drawAnnotation(annotation)
         }
         drawPendingPreview()
 
@@ -95,17 +98,26 @@ final class CaptureFrameView: NSView {
         drawStatusText()
     }
 
-    private func drawPendingPreview() {
-        guard let start = pendingStart, let current = pendingCurrent else { return }
-        let previewColor = annotationColor.withAlphaComponent(0.6)
-        switch currentTool {
+    private func drawAnnotation(_ annotation: Annotation) {
+        switch annotation {
         case .arrow:
-            Annotation.arrow(start: start, end: current).draw(color: previewColor)
+            annotation.draw(color: settings.arrowColor, lineWidth: settings.arrowWidth)
         case .frame:
+            annotation.draw(color: settings.frameColor, lineWidth: settings.frameStrokeWidth)
+        case .number:
+            annotation.draw()
+        }
+    }
+
+    private func drawPendingPreview() {
+        if let anchor = arrowAnchor, let current = pendingCurrent, currentTool == .arrow {
+            let direction = snappedArrowDirection(from: anchor, to: current)
+            let (start, end) = arrowPoints(anchor: anchor, direction: direction, length: settings.arrowLength)
+            Annotation.arrow(start: start, end: end).draw(color: settings.arrowColor.withAlphaComponent(0.6), lineWidth: settings.arrowWidth)
+        }
+        if let start = pendingStart, let current = pendingCurrent, currentTool == .frame {
             let rect = CGRect(x: min(start.x, current.x), y: min(start.y, current.y), width: abs(current.x - start.x), height: abs(current.y - start.y))
-            Annotation.frame(rect: rect).draw(color: previewColor)
-        case .none, .number:
-            break
+            Annotation.frame(rect: rect).draw(color: settings.frameColor.withAlphaComponent(0.6), lineWidth: settings.frameStrokeWidth)
         }
     }
 
@@ -165,7 +177,7 @@ final class CaptureFrameView: NSView {
 
         let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: bounds.width - 77, y: topY + 3, width: 22, height: 22))
         settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
-        settingsButton.onClick = { print("Settings: not built yet") }
+        settingsButton.onClick = { [weak self] in self?.onSettingsRequested?() }
         addSubview(settingsButton)
 
         // Anchored to the bottom of the left bar (just above the status
@@ -254,6 +266,15 @@ final class CaptureFrameView: NSView {
     }
 
     // MARK: - Middle button: annotations (only within the capture rect)
+    //
+    // Arrow: length is always the fixed configured length — dragging only
+    // picks which of the 4 diagonal directions it points, snapped to the
+    // nearest, matching the original's fixed-length/4-direction arrows.
+    // Frame: a plain click (drag below frameClickThreshold) places a
+    // fixed-size box (from settings) centered on the click; dragging
+    // beyond that draws a free-size box instead.
+
+    private let frameClickThreshold: CGFloat = 24
 
     override func otherMouseDown(with event: NSEvent) {
         guard event.buttonNumber == 2 else { return }
@@ -261,7 +282,10 @@ final class CaptureFrameView: NSView {
         guard captureRect.contains(p) else { return }
 
         switch currentTool {
-        case .arrow, .frame:
+        case .arrow:
+            arrowAnchor = p
+            pendingCurrent = p
+        case .frame:
             pendingStart = p
             pendingCurrent = p
         case .number:
@@ -274,7 +298,7 @@ final class CaptureFrameView: NSView {
     }
 
     override func otherMouseDragged(with event: NSEvent) {
-        guard pendingStart != nil else { return }
+        guard pendingStart != nil || arrowAnchor != nil else { return }
         pendingCurrent = convert(event.locationInWindow, from: nil)
         needsDisplay = true
     }
@@ -283,21 +307,63 @@ final class CaptureFrameView: NSView {
         defer {
             pendingStart = nil
             pendingCurrent = nil
+            arrowAnchor = nil
             needsDisplay = true
         }
-        guard let start = pendingStart else { return }
         let end = convert(event.locationInWindow, from: nil)
-        guard hypot(end.x - start.x, end.y - start.y) > 4 else { return }
 
         switch currentTool {
         case .arrow:
-            annotations.append(.arrow(start: start, end: end))
+            guard let anchor = arrowAnchor else { return }
+            let direction = snappedArrowDirection(from: anchor, to: end)
+            let (start, arrowEnd) = arrowPoints(anchor: anchor, direction: direction, length: settings.arrowLength)
+            lastArrowDirection = direction
+            annotations.append(.arrow(start: start, end: arrowEnd))
+
         case .frame:
-            let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y), width: abs(end.x - start.x), height: abs(end.y - start.y))
-            annotations.append(.frame(rect: rect))
+            guard let start = pendingStart else { return }
+            if hypot(end.x - start.x, end.y - start.y) < frameClickThreshold {
+                let w = settings.frameFixedWidth
+                let h = settings.frameFixedHeight
+                annotations.append(.frame(rect: CGRect(x: start.x - w / 2, y: start.y - h / 2, width: w, height: h)))
+            } else {
+                let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y), width: abs(end.x - start.x), height: abs(end.y - start.y))
+                annotations.append(.frame(rect: rect))
+            }
+
         case .none, .number:
             break
         }
+    }
+
+    // 1=↗ 2=↘ 3=↙ 4=↖, snapped to the nearest of these 4 diagonals.
+    private func snappedArrowDirection(from anchor: CGPoint, to current: CGPoint) -> Int {
+        let dx = current.x - anchor.x
+        let dy = current.y - anchor.y
+        guard hypot(dx, dy) > 6 else { return lastArrowDirection }
+
+        var angle = atan2(dy, dx) * 180 / .pi
+        if angle < 0 { angle += 360 }
+
+        let candidates: [(angle: Double, direction: Int)] = [(45, 1), (135, 4), (225, 3), (315, 2)]
+        return candidates.min { angleDelta($0.angle, angle) < angleDelta($1.angle, angle) }!.direction
+    }
+
+    private func angleDelta(_ a: Double, _ b: Double) -> Double {
+        var d = abs(a - b).truncatingRemainder(dividingBy: 360)
+        if d > 180 { d = 360 - d }
+        return d
+    }
+
+    private func arrowPoints(anchor: CGPoint, direction: Int, length: CGFloat) -> (start: CGPoint, end: CGPoint) {
+        let start: CGPoint
+        switch direction {
+        case 1: start = CGPoint(x: anchor.x - length, y: anchor.y - length) // ↗
+        case 2: start = CGPoint(x: anchor.x - length, y: anchor.y + length) // ↘
+        case 3: start = CGPoint(x: anchor.x + length, y: anchor.y + length) // ↙
+        default: start = CGPoint(x: anchor.x + length, y: anchor.y - length) // ↖
+        }
+        return (start, anchor)
     }
 
     // MARK: - Keyboard: tool switching, undo/clear, size presets

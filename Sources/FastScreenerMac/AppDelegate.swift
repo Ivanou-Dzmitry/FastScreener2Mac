@@ -4,6 +4,7 @@ import Carbon.HIToolbox
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: CaptureWindow!
+    var settingsWindow: SettingsWindow!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screen = NSScreen.main!.frame
@@ -17,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window = CaptureWindow(contentRect: CGRect(origin: origin, size: windowSize))
         if let frameView = window.contentView as? CaptureFrameView {
             frameView.onCaptureRequested = { [weak self] in self?.captureAndSave() }
+            frameView.onSettingsRequested = { [weak self] in self?.showSettings() }
         }
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(window.contentView)
@@ -29,6 +31,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    private func showSettings() {
+        if settingsWindow == nil {
+            settingsWindow = SettingsWindow()
+        }
+        settingsWindow.center()
+        settingsWindow.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func captureAndSave() {
@@ -84,12 +95,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         image.draw(in: CGRect(origin: .zero, size: size))
 
         if !annotations.isEmpty, let context = NSGraphicsContext.current {
+            let settings = AppSettings.shared
             context.saveGraphicsState()
             let transform = NSAffineTransform()
             transform.translateX(by: -offset.x, yBy: -offset.y)
             transform.concat()
             for annotation in annotations {
-                annotation.draw()
+                switch annotation {
+                case .arrow:
+                    annotation.draw(color: settings.arrowColor, lineWidth: settings.arrowWidth)
+                case .frame:
+                    annotation.draw(color: settings.frameColor, lineWidth: settings.frameStrokeWidth)
+                case .number:
+                    annotation.draw()
+                }
             }
             context.restoreGraphicsState()
         }

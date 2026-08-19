@@ -13,7 +13,10 @@ import AppKit
 // hand-resize logic was removed from the view.
 final class CaptureWindow: NSWindow {
     convenience init(contentRect: CGRect) {
-        self.init(contentRect: contentRect, styleMask: [.borderless], backing: .buffered, defer: false)
+        // .miniaturizable is needed for the minimize button to work at
+        // all — without it in styleMask, window.miniaturize(_:) is a no-op
+        // even though nothing about it requires a visible title bar.
+        self.init(contentRect: contentRect, styleMask: [.borderless, .miniaturizable], backing: .buffered, defer: false)
 
         isOpaque = false
         backgroundColor = .clear
