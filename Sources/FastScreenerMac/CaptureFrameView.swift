@@ -39,13 +39,9 @@ final class CaptureFrameView: NSView {
     private var arrowAnchor: CGPoint? // arrow's fixed end point (the click location)
     private var lastArrowDirection = 1 // 1=↗ 2=↘ 3=↙ 4=↖, persists as the default for plain clicks
 
-    // Alt+1..4 apply these, Alt+5 is fullscreen, Ctrl+Right cycles them.
-    private let presets: [CGSize] = [
-        CGSize(width: 650, height: 366),
-        CGSize(width: 650, height: 650),
-        CGSize(width: 650, height: 700),
-        CGSize(width: 960, height: 600),
-    ]
+    // Alt+1..4 apply these (settings.presetSizes, editable in Settings >
+    // Sizes), Alt+5 is fullscreen, Ctrl+Right cycles them.
+    private var presets: [CGSize] { settings.presetSizes }
     private var currentPresetIndex = 0
     private var preMaxFrame: CGRect?
 

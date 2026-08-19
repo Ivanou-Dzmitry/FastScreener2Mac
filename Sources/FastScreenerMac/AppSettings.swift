@@ -1,13 +1,23 @@
 import AppKit
 
-// Persisted user-configurable annotation settings, matching fields from
-// the original FastScreener2's Arrow/Frame settings classes: arrow
-// color/length/width, frame color/stroke width/fixed click size.
+// Persisted user-configurable settings, matching fields from the
+// original FastScreener2's settings classes: arrow color/length/width,
+// frame color/stroke width/fixed click size, number color/font, panel
+// (chrome) color, clear-after-capture, and the 4 size presets. Also
+// supports named profiles (Save as/Load/Delete/Reset), like the
+// original's Profile dropdown.
 @MainActor
 final class AppSettings {
     static let shared = AppSettings()
 
     private let defaults = UserDefaults.standard
+    private static let profilesKey = "settingsProfiles"
+    static let defaultProfileSizes: [CGSize] = [
+        CGSize(width: 650, height: 366),
+        CGSize(width: 650, height: 650),
+        CGSize(width: 650, height: 700),
+        CGSize(width: 960, height: 600),
+    ]
 
     var arrowColor: NSColor { didSet { save() } }
     var arrowLength: CGFloat { didSet { save() } } // px, min 8
@@ -25,6 +35,8 @@ final class AppSettings {
     var chromeColor: NSColor { didSet { save() } } // top/left/bottom bar background ("Panel Color" in the original)
     var clearElementsAfterCapture: Bool { didSet { save() } }
 
+    var presetSizes: [CGSize] { didSet { save() } } // the 4 Alt+1..4 sizes ("Sizes" category in the original)
+
     private init() {
         arrowColor = Self.loadColor(key: "arrowColor") ?? .cyan
         arrowLength = Self.loadNumber(key: "arrowLength") ?? 50
@@ -41,6 +53,8 @@ final class AppSettings {
 
         chromeColor = Self.loadColor(key: "chromeColor") ?? NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 0.92) // SlateGray
         clearElementsAfterCapture = defaults.object(forKey: "clearElementsAfterCapture") as? Bool ?? true
+
+        presetSizes = Self.loadPresetSizes() ?? Self.defaultProfileSizes
     }
 
     private func save() {
@@ -52,6 +66,8 @@ final class AppSettings {
         defaults.set(Double(numberFontSize), forKey: "numberFontSize")
         defaults.set(numberFontFamily, forKey: "numberFontFamily")
         defaults.set(clearElementsAfterCapture, forKey: "clearElementsAfterCapture")
+        defaults.set(presetSizes.map { Double($0.width) }, forKey: "presetWidths")
+        defaults.set(presetSizes.map { Double($0.height) }, forKey: "presetHeights")
         Self.saveColor(arrowColor, key: "arrowColor")
         Self.saveColor(frameColor, key: "frameColor")
         Self.saveColor(numberColor, key: "numberColor")
@@ -71,5 +87,113 @@ final class AppSettings {
     private static func saveColor(_ color: NSColor, key: String) {
         guard let data = try? NSKeyedArchiver.archivedData(withRootObject: color, requiringSecureCoding: true) else { return }
         UserDefaults.standard.set(data, forKey: key)
+    }
+
+    private static func loadPresetSizes() -> [CGSize]? {
+        guard let widths = UserDefaults.standard.array(forKey: "presetWidths") as? [Double],
+              let heights = UserDefaults.standard.array(forKey: "presetHeights") as? [Double],
+              widths.count == heights.count, !widths.isEmpty else { return nil }
+        return zip(widths, heights).map { CGSize(width: $0, height: $1) }
+    }
+
+    // MARK: - Profiles
+
+    struct Snapshot: Codable {
+        var arrowColor: Data
+        var arrowLength: Double
+        var arrowWidth: Double
+        var frameColor: Data
+        var frameStrokeWidth: Double
+        var frameFixedWidth: Double
+        var frameFixedHeight: Double
+        var numberColor: Data
+        var numberFontSize: Double
+        var numberFontFamily: String
+        var chromeColor: Data
+        var clearElementsAfterCapture: Bool
+        var presetWidths: [Double]
+        var presetHeights: [Double]
+    }
+
+    private func currentSnapshot() -> Snapshot {
+        Snapshot(
+            arrowColor: Self.encode(arrowColor), arrowLength: arrowLength, arrowWidth: arrowWidth,
+            frameColor: Self.encode(frameColor), frameStrokeWidth: frameStrokeWidth,
+            frameFixedWidth: frameFixedWidth, frameFixedHeight: frameFixedHeight,
+            numberColor: Self.encode(numberColor), numberFontSize: numberFontSize, numberFontFamily: numberFontFamily,
+            chromeColor: Self.encode(chromeColor), clearElementsAfterCapture: clearElementsAfterCapture,
+            presetWidths: presetSizes.map { Double($0.width) }, presetHeights: presetSizes.map { Double($0.height) }
+        )
+    }
+
+    private func apply(_ snapshot: Snapshot) {
+        arrowColor = Self.decode(snapshot.arrowColor) ?? arrowColor
+        arrowLength = CGFloat(snapshot.arrowLength)
+        arrowWidth = CGFloat(snapshot.arrowWidth)
+        frameColor = Self.decode(snapshot.frameColor) ?? frameColor
+        frameStrokeWidth = CGFloat(snapshot.frameStrokeWidth)
+        frameFixedWidth = CGFloat(snapshot.frameFixedWidth)
+        frameFixedHeight = CGFloat(snapshot.frameFixedHeight)
+        numberColor = Self.decode(snapshot.numberColor) ?? numberColor
+        numberFontSize = CGFloat(snapshot.numberFontSize)
+        numberFontFamily = snapshot.numberFontFamily
+        chromeColor = Self.decode(snapshot.chromeColor) ?? chromeColor
+        clearElementsAfterCapture = snapshot.clearElementsAfterCapture
+        if snapshot.presetWidths.count == snapshot.presetHeights.count, !snapshot.presetWidths.isEmpty {
+            presetSizes = zip(snapshot.presetWidths, snapshot.presetHeights).map { CGSize(width: $0, height: $1) }
+        }
+    }
+
+    private static func encode(_ color: NSColor) -> Data {
+        (try? NSKeyedArchiver.archivedData(withRootObject: color, requiringSecureCoding: true)) ?? Data()
+    }
+
+    private static func decode(_ data: Data) -> NSColor? {
+        try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data)
+    }
+
+    private var profilesDict: [String: Data] {
+        get { (defaults.dictionary(forKey: Self.profilesKey) as? [String: Data]) ?? [:] }
+        set { defaults.set(newValue, forKey: Self.profilesKey) }
+    }
+
+    var profileNames: [String] {
+        var names = Array(profilesDict.keys).sorted()
+        if !names.contains("default") { names.insert("default", at: 0) }
+        return names
+    }
+
+    func saveProfile(named name: String) {
+        guard let data = try? JSONEncoder().encode(currentSnapshot()) else { return }
+        var dict = profilesDict
+        dict[name] = data
+        profilesDict = dict
+    }
+
+    func loadProfile(named name: String) {
+        guard let data = profilesDict[name], let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
+        apply(snapshot)
+    }
+
+    func deleteProfile(named name: String) {
+        var dict = profilesDict
+        dict.removeValue(forKey: name)
+        profilesDict = dict
+    }
+
+    func resetToDefaults() {
+        arrowColor = .cyan
+        arrowLength = 50
+        arrowWidth = 1
+        frameColor = NSColor(calibratedRed: 1.0, green: 0.27, blue: 0.0, alpha: 1.0)
+        frameStrokeWidth = 1
+        frameFixedWidth = 80
+        frameFixedHeight = 80
+        numberColor = .yellow
+        numberFontSize = 26
+        numberFontFamily = ""
+        chromeColor = NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 0.92)
+        clearElementsAfterCapture = true
+        presetSizes = Self.defaultProfileSizes
     }
 }
