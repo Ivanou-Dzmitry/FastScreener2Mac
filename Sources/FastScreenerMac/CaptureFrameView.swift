@@ -46,8 +46,8 @@ final class CaptureFrameView: NSView {
     private var nextNumber = 1
     private var pendingStart: CGPoint? // frame drag start
     private var pendingCurrent: CGPoint? // frame drag current / arrow drag current
-    private var arrowAnchor: CGPoint? // arrow's fixed end point (the click location)
-    private var lastArrowDirection = 1 // 1=↗ 2=↘ 3=↙ 4=↖, persists as the default for plain clicks
+    private var arrowAnchor: CGPoint? // arrow's fixed head point (the click location — matches the arrowhead triangle)
+    private var lastArrowSign: (CGFloat, CGFloat) = (1, -1) // tail offset sign from anchor, persists as the default for plain clicks
 
     // Alt+1..4 apply these (settings.presetSizes, editable in Settings >
     // Sizes), Alt+5 is fullscreen, Ctrl+Right cycles them.
@@ -131,8 +131,8 @@ final class CaptureFrameView: NSView {
 
     private func drawPendingPreview() {
         if let anchor = arrowAnchor, let current = pendingCurrent, currentTool == .arrow {
-            let direction = snappedArrowDirection(from: anchor, to: current)
-            let (start, end) = arrowPoints(anchor: anchor, direction: direction, length: settings.arrowLength)
+            let sign = snappedArrowSign(from: anchor, to: current)
+            let (start, end) = arrowPoints(anchor: anchor, sign: sign, length: settings.arrowLength)
             Annotation.arrow(start: start, end: end).draw(color: settings.arrowColor.withAlphaComponent(0.6), lineWidth: settings.arrowWidth)
         }
         if let start = pendingStart, let current = pendingCurrent, currentTool == .frame {
@@ -410,9 +410,9 @@ final class CaptureFrameView: NSView {
         switch currentTool {
         case .arrow:
             guard let anchor = arrowAnchor else { return }
-            let direction = snappedArrowDirection(from: anchor, to: end)
-            let (start, arrowEnd) = arrowPoints(anchor: anchor, direction: direction, length: settings.arrowLength)
-            lastArrowDirection = direction
+            let sign = snappedArrowSign(from: anchor, to: end)
+            let (start, arrowEnd) = arrowPoints(anchor: anchor, sign: sign, length: settings.arrowLength)
+            lastArrowSign = sign
             annotations.append(.arrow(start: start, end: arrowEnd))
 
         case .frame:
@@ -431,39 +431,26 @@ final class CaptureFrameView: NSView {
         }
     }
 
-    // 1=↗ 2=↘ 3=↙ 4=↖, snapped to the nearest of these 4 diagonals.
-    private func snappedArrowDirection(from anchor: CGPoint, to current: CGPoint) -> Int {
+    // Matches the original: the click point is the fixed arrowHEAD
+    // (the triangle is always drawn there); the tail extends away from
+    // it in the SAME direction you drag, snapped to the nearest of the
+    // 4 diagonals. Using the raw sign of dx/dy — rather than an angle
+    // looked up in a table — sidesteps the WinForms(Y-down)-to-
+    // Cocoa(Y-up) porting mistake that flipped this twice already: as
+    // long as the tail offset uses the same sign as the drag delta in
+    // Cocoa's own coordinate system, the visual result is correct by
+    // construction, with no coordinate-convention translation to get
+    // wrong.
+    private func snappedArrowSign(from anchor: CGPoint, to current: CGPoint) -> (CGFloat, CGFloat) {
         let dx = current.x - anchor.x
         let dy = current.y - anchor.y
-        guard hypot(dx, dy) > 6 else { return lastArrowDirection }
-
-        var angle = atan2(dy, dx) * 180 / .pi
-        if angle < 0 { angle += 360 }
-
-        let candidates: [(angle: Double, direction: Int)] = [(45, 1), (135, 4), (225, 3), (315, 2)]
-        return candidates.min { angleDelta($0.angle, angle) < angleDelta($1.angle, angle) }!.direction
+        guard hypot(dx, dy) > 6 else { return lastArrowSign }
+        return (dx >= 0 ? 1 : -1, dy >= 0 ? 1 : -1)
     }
 
-    private func angleDelta(_ a: Double, _ b: Double) -> Double {
-        var d = abs(a - b).truncatingRemainder(dividingBy: 360)
-        if d > 180 { d = 360 - d }
-        return d
-    }
-
-    // Anchor (the click point) is the tail; the arrowhead extends from
-    // it toward wherever the drag pointed — dragging down draws an
-    // arrow pointing down, matching the intuitive "drag toward where
-    // you want it to point" (this was backwards — head fixed at anchor,
-    // tail following the drag — until corrected here).
-    private func arrowPoints(anchor: CGPoint, direction: Int, length: CGFloat) -> (start: CGPoint, end: CGPoint) {
-        let end: CGPoint
-        switch direction {
-        case 1: end = CGPoint(x: anchor.x - length, y: anchor.y - length) // ↙
-        case 2: end = CGPoint(x: anchor.x - length, y: anchor.y + length) // ↖
-        case 3: end = CGPoint(x: anchor.x + length, y: anchor.y + length) // ↗
-        default: end = CGPoint(x: anchor.x + length, y: anchor.y - length) // ↘
-        }
-        return (anchor, end)
+    private func arrowPoints(anchor: CGPoint, sign: (CGFloat, CGFloat), length: CGFloat) -> (start: CGPoint, end: CGPoint) {
+        let tail = CGPoint(x: anchor.x + sign.0 * length, y: anchor.y + sign.1 * length)
+        return (tail, anchor)
     }
 
     // MARK: - Keyboard: tool switching, undo/clear, size presets
