@@ -40,12 +40,18 @@ enum Annotation {
 
     private static func drawArrowShape(from start: CGPoint, to end: CGPoint, color: NSColor, lineWidth: CGFloat, headLength: CGFloat) {
         let angle = atan2(end.y - start.y, end.x - start.x)
+        let headAngle: CGFloat = .pi / 7
 
-        // Stop the shaft short of the tip by headLength, instead of
-        // running it all the way to `end` underneath the head triangle
-        // — otherwise a thick shaft can visibly poke out past the
-        // triangle's edges right at the point.
-        let shaftEnd = CGPoint(x: end.x - headLength * cos(angle), y: end.y - headLength * sin(angle))
+        // Stop the shaft short of the tip, instead of running it all the
+        // way to `end` underneath the head triangle (which let a thick
+        // shaft poke out past the triangle's edges). The triangle's base
+        // (the p1-p2 line) sits at headLength*cos(headAngle) back from
+        // the tip, not a full headLength back — pulling the shaft back
+        // by the full headLength overshot the base and left a visible
+        // gap. A tiny extra pullback keeps the stroke's rounded/butt
+        // edge safely under the fill regardless of anti-aliasing.
+        let shaftPullback = headLength * cos(headAngle) - 1
+        let shaftEnd = CGPoint(x: end.x - shaftPullback * cos(angle), y: end.y - shaftPullback * sin(angle))
         let path = NSBezierPath()
         path.move(to: start)
         path.line(to: shaftEnd)
@@ -53,7 +59,6 @@ enum Annotation {
         color.setStroke()
         path.stroke()
 
-        let headAngle: CGFloat = .pi / 7
         let p1 = CGPoint(x: end.x - headLength * cos(angle - headAngle), y: end.y - headLength * sin(angle - headAngle))
         let p2 = CGPoint(x: end.x - headLength * cos(angle + headAngle), y: end.y - headLength * sin(angle + headAngle))
         let head = NSBezierPath()
