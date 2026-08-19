@@ -493,7 +493,10 @@ final class CaptureFrameView: NSView {
     }
 
     private func undo() {
-        _ = annotations.popLast()
+        guard let removed = annotations.popLast() else { return }
+        if case .number = removed {
+            nextNumber = max(1, nextNumber - 1)
+        }
     }
 
     private func clearAll() {
