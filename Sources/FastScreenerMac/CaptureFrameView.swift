@@ -17,7 +17,7 @@ final class CaptureFrameView: NSView {
     static let filenameMaxLength = 42
 
     private let snapMargin: CGFloat = 8
-    private let borderWidth: CGFloat = 1.5
+    private let borderWidth: CGFloat = 1
     private let borderColor = NSColor.black
     private let settings = AppSettings.shared
     // The two icon clusters (hamburger/capture/resolution-cycle, and
@@ -64,6 +64,7 @@ final class CaptureFrameView: NSView {
     private var hamburgerButton: IconButton!
     private var toolButtons: [AnnotationTool: IconButton] = [:]
     private var saveToDiskButton: IconButton!
+    private var guidesButton: IconButton!
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -104,6 +105,8 @@ final class CaptureFrameView: NSView {
         NSBezierPath(rect: CGRect(x: iconClusterInset, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - iconClusterInset - iconClusterWidth, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
 
+        drawGuides()
+
         for annotation in annotations {
             drawAnnotation(annotation)
         }
@@ -116,6 +119,45 @@ final class CaptureFrameView: NSView {
         borderPath.stroke()
 
         drawStatusText()
+    }
+
+    // View-only alignment aid, never baked into the captured image —
+    // matches the original's RenderGuides: type 1/2 are a thirds/quarters
+    // grid, type 3 is a single dashed line inset from each edge by a
+    // configurable amount.
+    private func drawGuides() {
+        guard settings.showGuides else { return }
+        let rect = captureRect
+        let path = NSBezierPath()
+        path.lineWidth = 1
+        path.setLineDash([4, 3], count: 2, phase: 0)
+
+        switch settings.guidelineType {
+        case 1, 2:
+            let divisions = settings.guidelineType == 1 ? 3 : 4
+            for i in 1..<divisions {
+                let x = rect.minX + rect.width * CGFloat(i) / CGFloat(divisions)
+                path.move(to: CGPoint(x: x, y: rect.minY))
+                path.line(to: CGPoint(x: x, y: rect.maxY))
+            }
+            for i in 1..<divisions {
+                let y = rect.minY + rect.height * CGFloat(i) / CGFloat(divisions)
+                path.move(to: CGPoint(x: rect.minX, y: y))
+                path.line(to: CGPoint(x: rect.maxX, y: y))
+            }
+        default:
+            let top = rect.maxY - settings.guideTopIndent
+            let bottom = rect.minY + settings.guideBottomIndent
+            let left = rect.minX + settings.guideLeftIndent
+            let right = rect.maxX - settings.guideRightIndent
+            path.move(to: CGPoint(x: rect.minX, y: top)); path.line(to: CGPoint(x: rect.maxX, y: top))
+            path.move(to: CGPoint(x: rect.minX, y: bottom)); path.line(to: CGPoint(x: rect.maxX, y: bottom))
+            path.move(to: CGPoint(x: left, y: rect.minY)); path.line(to: CGPoint(x: left, y: rect.maxY))
+            path.move(to: CGPoint(x: right, y: rect.minY)); path.line(to: CGPoint(x: right, y: rect.maxY))
+        }
+
+        settings.guideColor.setStroke()
+        path.stroke()
     }
 
     private func drawAnnotation(_ annotation: Annotation) {
@@ -236,7 +278,7 @@ final class CaptureFrameView: NSView {
             (.frame, "frame_icon"),
             (.number, "number_icon"),
         ]
-        let totalSlots = toolIcons.count + 1 // +1 for the Save-to-Disk toggle below
+        let totalSlots = toolIcons.count + 2 // +2 for the Save-to-Disk and Guidelines toggles below
         let groupBottom = Self.bottomBarHeight + 8
         for (index, pair) in toolIcons.enumerated() {
             let (tool, iconName) = pair
@@ -252,7 +294,7 @@ final class CaptureFrameView: NSView {
         // Save-to-Disk toggle: same on/off flag as the hamburger menu's
         // "Save to File" item — active (blue) means F4 also writes a
         // PNG to disk, inactive means clipboard only.
-        saveToDiskButton = IconButton(icon: IconLoader.load("save_icon"), frame: CGRect(x: 4, y: groupBottom, width: Self.leftBarWidth - 8, height: 24), showsBackgroundWhenInactive: true)
+        saveToDiskButton = IconButton(icon: IconLoader.load("save_icon"), frame: CGRect(x: 4, y: groupBottom + 30, width: Self.leftBarWidth - 8, height: 24), showsBackgroundWhenInactive: true)
         saveToDiskButton.autoresizingMask = [.maxYMargin]
         saveToDiskButton.isActive = settings.saveToFile
         saveToDiskButton.onClick = { [weak self] in
@@ -261,6 +303,19 @@ final class CaptureFrameView: NSView {
             self.saveToDiskButton.isActive = self.settings.saveToFile
         }
         addSubview(saveToDiskButton)
+
+        // Guidelines toggle: same on/off flag as the hamburger menu's
+        // "Guidelines" item.
+        guidesButton = IconButton(icon: IconLoader.load("guides_icon"), frame: CGRect(x: 4, y: groupBottom, width: Self.leftBarWidth - 8, height: 24), showsBackgroundWhenInactive: true)
+        guidesButton.autoresizingMask = [.maxYMargin]
+        guidesButton.isActive = settings.showGuides
+        guidesButton.onClick = { [weak self] in
+            guard let self else { return }
+            self.settings.showGuides.toggle()
+            self.guidesButton.isActive = self.settings.showGuides
+            self.needsDisplay = true
+        }
+        addSubview(guidesButton)
 
         updateToolButtonHighlight()
     }
@@ -304,7 +359,14 @@ final class CaptureFrameView: NSView {
         menu.addItem(Self.stub("Watermark"))
         menu.addItem(.separator())
 
-        menu.addItem(Self.stub("Guidelines"))
+        let guidesItem = ClosureMenuItem(title: "Guidelines") { [weak self] in
+            guard let self else { return }
+            self.settings.showGuides.toggle()
+            self.guidesButton.isActive = self.settings.showGuides
+            self.needsDisplay = true
+        }
+        guidesItem.state = settings.showGuides ? .on : .off
+        menu.addItem(guidesItem)
         let saveToFileItem = ClosureMenuItem(title: "Save to File") { [weak self] in
             guard let self else { return }
             self.settings.saveToFile.toggle()

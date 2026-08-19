@@ -63,6 +63,17 @@ final class AppSettings {
     var pngDepth: String { didSet { save() } }
     var jpegQuality: Int { didSet { save() } }
 
+    // Guidelines: view-only alignment aids, never baked into the capture.
+    // guidelineType: 1 = thirds grid, 2 = quarters grid, 3 = custom
+    // margins (guideTop/Bottom/Left/RightIndent from each edge).
+    var showGuides: Bool { didSet { save() } }
+    var guidelineType: Int { didSet { save() } }
+    var guideColor: NSColor { didSet { save() } }
+    var guideTopIndent: CGFloat { didSet { save() } }
+    var guideBottomIndent: CGFloat { didSet { save() } }
+    var guideLeftIndent: CGFloat { didSet { save() } }
+    var guideRightIndent: CGFloat { didSet { save() } }
+
     private init() {
         arrowColor = Self.loadColor(key: "arrowColor") ?? .cyan
         arrowLength = Self.loadNumber(key: "arrowLength") ?? 50
@@ -88,6 +99,14 @@ final class AppSettings {
         fileFormat = defaults.string(forKey: "fileFormat") ?? "png"
         pngDepth = defaults.string(forKey: "pngDepth") ?? "32bpp"
         jpegQuality = defaults.object(forKey: "jpegQuality") as? Int ?? 75
+
+        showGuides = defaults.object(forKey: "showGuides") as? Bool ?? false
+        guidelineType = defaults.object(forKey: "guidelineType") as? Int ?? 3
+        guideColor = Self.loadColor(key: "guideColor") ?? NSColor(calibratedWhite: 0.75, alpha: 1)
+        guideTopIndent = Self.loadNumber(key: "guideTopIndent") ?? 10
+        guideBottomIndent = Self.loadNumber(key: "guideBottomIndent") ?? 10
+        guideLeftIndent = Self.loadNumber(key: "guideLeftIndent") ?? 10
+        guideRightIndent = Self.loadNumber(key: "guideRightIndent") ?? 10
     }
 
     private func save() {
@@ -108,6 +127,13 @@ final class AppSettings {
         defaults.set(fileFormat, forKey: "fileFormat")
         defaults.set(pngDepth, forKey: "pngDepth")
         defaults.set(jpegQuality, forKey: "jpegQuality")
+        defaults.set(showGuides, forKey: "showGuides")
+        defaults.set(guidelineType, forKey: "guidelineType")
+        defaults.set(Double(guideTopIndent), forKey: "guideTopIndent")
+        defaults.set(Double(guideBottomIndent), forKey: "guideBottomIndent")
+        defaults.set(Double(guideLeftIndent), forKey: "guideLeftIndent")
+        defaults.set(Double(guideRightIndent), forKey: "guideRightIndent")
+        Self.saveColor(guideColor, key: "guideColor")
         Self.saveColor(arrowColor, key: "arrowColor")
         Self.saveColor(frameColor, key: "frameColor")
         Self.saveColor(numberColor, key: "numberColor")
@@ -249,5 +275,12 @@ final class AppSettings {
         fileFormat = "png"
         pngDepth = "32bpp"
         jpegQuality = 75
+        showGuides = false
+        guidelineType = 3
+        guideColor = NSColor(calibratedWhite: 0.75, alpha: 1)
+        guideTopIndent = 10
+        guideBottomIndent = 10
+        guideLeftIndent = 10
+        guideRightIndent = 10
     }
 }

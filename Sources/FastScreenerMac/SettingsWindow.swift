@@ -210,7 +210,21 @@ final class SettingsWindow: NSWindow {
         stack.addArrangedSubview(frameHint)
 
         stack.addArrangedSubview(Self.sectionLabel("Guides"))
-        stack.addArrangedSubview(Self.stubNote())
+        stack.addArrangedSubview(CheckboxControl(title: "Show guides", isOn: settings.showGuides) { settings.showGuides = $0 })
+        let guideTypeNames = ["Thirds", "Quarters", "Custom Margins"]
+        stack.addArrangedSubview(Self.row(title: "Type", control: ChoicePicker(options: guideTypeNames, selected: guideTypeNames[settings.guidelineType - 1]) { value in
+            settings.guidelineType = (guideTypeNames.firstIndex(of: value) ?? 2) + 1
+        }))
+        stack.addArrangedSubview(Self.row(title: "Color", control: ColorWell(color: settings.guideColor) { settings.guideColor = $0 }))
+        stack.addArrangedSubview(Self.row(title: "Top indent (px)", control: NumberField(value: settings.guideTopIndent) { settings.guideTopIndent = max(0, $0) }))
+        stack.addArrangedSubview(Self.row(title: "Bottom indent (px)", control: NumberField(value: settings.guideBottomIndent) { settings.guideBottomIndent = max(0, $0) }))
+        stack.addArrangedSubview(Self.row(title: "Left indent (px)", control: NumberField(value: settings.guideLeftIndent) { settings.guideLeftIndent = max(0, $0) }))
+        stack.addArrangedSubview(Self.row(title: "Right indent (px)", control: NumberField(value: settings.guideRightIndent) { settings.guideRightIndent = max(0, $0) }))
+        let guideHint = NSTextField(wrappingLabelWithString: "Indents only apply to the Custom Margins type. Guides are a view-only aid — never included in the captured image.")
+        guideHint.font = .systemFont(ofSize: 11)
+        guideHint.textColor = .secondaryLabelColor
+        guideHint.preferredMaxLayoutWidth = 340
+        stack.addArrangedSubview(guideHint)
 
         stack.addArrangedSubview(Self.sectionLabel("Numbers"))
         stack.addArrangedSubview(Self.row(title: "Color", control: ColorWell(color: settings.numberColor) { settings.numberColor = $0 }))
