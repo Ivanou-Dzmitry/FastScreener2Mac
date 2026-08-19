@@ -63,6 +63,7 @@ final class CaptureFrameView: NSView {
 
     private var hamburgerButton: IconButton!
     private var toolButtons: [AnnotationTool: IconButton] = [:]
+    private var saveToDiskButton: IconButton!
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -229,22 +230,38 @@ final class CaptureFrameView: NSView {
         // bar), not the top: .maxYMargin in autoresizingMask leaves the
         // margin *above* the button flexible and the margin *below* it
         // fixed, which pins it to the bottom as the window resizes.
+        // Each button always shows its grey chip, not just when active.
         let toolIcons: [(AnnotationTool, String)] = [
             (.arrow, "arrow_icon"),
             (.frame, "frame_icon"),
             (.number, "number_icon"),
         ]
+        let totalSlots = toolIcons.count + 1 // +1 for the Save-to-Disk toggle below
         let groupBottom = Self.bottomBarHeight + 8
         for (index, pair) in toolIcons.enumerated() {
             let (tool, iconName) = pair
-            let reverseIndex = toolIcons.count - 1 - index
+            let reverseIndex = totalSlots - 1 - index
             let y = groupBottom + CGFloat(reverseIndex) * 30
-            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 4, y: y, width: Self.leftBarWidth - 8, height: 24))
+            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 4, y: y, width: Self.leftBarWidth - 8, height: 24), showsBackgroundWhenInactive: true)
             button.autoresizingMask = [.maxYMargin]
             button.onClick = { [weak self] in self?.currentTool = tool }
             addSubview(button)
             toolButtons[tool] = button
         }
+
+        // Save-to-Disk toggle: same on/off flag as the hamburger menu's
+        // "Save to File" item — active (blue) means F4 also writes a
+        // PNG to disk, inactive means clipboard only.
+        saveToDiskButton = IconButton(icon: IconLoader.load("save_icon"), frame: CGRect(x: 4, y: groupBottom, width: Self.leftBarWidth - 8, height: 24), showsBackgroundWhenInactive: true)
+        saveToDiskButton.autoresizingMask = [.maxYMargin]
+        saveToDiskButton.isActive = settings.saveToFile
+        saveToDiskButton.onClick = { [weak self] in
+            guard let self else { return }
+            self.settings.saveToFile.toggle()
+            self.saveToDiskButton.isActive = self.settings.saveToFile
+        }
+        addSubview(saveToDiskButton)
+
         updateToolButtonHighlight()
     }
 
@@ -289,7 +306,9 @@ final class CaptureFrameView: NSView {
 
         menu.addItem(Self.stub("Guidelines"))
         let saveToFileItem = ClosureMenuItem(title: "Save to File") { [weak self] in
-            self?.settings.saveToFile.toggle()
+            guard let self else { return }
+            self.settings.saveToFile.toggle()
+            self.saveToDiskButton.isActive = self.settings.saveToFile
         }
         saveToFileItem.state = settings.saveToFile ? .on : .off
         menu.addItem(saveToFileItem)

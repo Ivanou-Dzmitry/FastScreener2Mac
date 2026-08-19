@@ -8,17 +8,28 @@ final class IconButton: NSView {
     var isActive: Bool = false { didSet { needsDisplay = true } }
 
     private let icon: NSImage
+    // Tool-select buttons (left toolbar) always sit on their own grey
+    // chip, not just when active — matches the reference. Chrome buttons
+    // (hamburger, close, etc.) stay transparent since they already sit
+    // on a shared fixed-grey zone painted by the superview.
+    private let showsBackgroundWhenInactive: Bool
 
-    init(icon: NSImage, frame: CGRect) {
+    init(icon: NSImage, frame: CGRect, showsBackgroundWhenInactive: Bool = false) {
         self.icon = icon
+        self.showsBackgroundWhenInactive = showsBackgroundWhenInactive
         super.init(frame: frame)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    // Matches the original: dark grey when off, light grey when on —
+    // not a color accent, just a lighter/darker chip.
     override func draw(_ dirtyRect: NSRect) {
         if isActive {
-            NSColor.systemBlue.withAlphaComponent(0.8).setFill()
+            NSColor(calibratedWhite: 0.75, alpha: 1).setFill()
+            NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
+        } else if showsBackgroundWhenInactive {
+            NSColor(calibratedWhite: 0.35, alpha: 1).setFill()
             NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
         }
         let padding: CGFloat = 5
