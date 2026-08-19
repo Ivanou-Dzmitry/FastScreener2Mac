@@ -94,9 +94,10 @@ final class CaptureFrameView: NSView {
         // left, settings/minimize/close on the right) always sit on
         // fixed grey, unaffected by Panel Color — painted over the
         // chrome fill in just those two top-bar slices.
+        let controlZoneEdgeInset: CGFloat = 4
         fixedControlBackground.setFill()
-        NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: 81, height: Self.topBarHeight)).fill()
-        NSBezierPath(rect: CGRect(x: bounds.width - 82, y: bounds.height - Self.topBarHeight, width: 82, height: Self.topBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: controlZoneEdgeInset, y: bounds.height - Self.topBarHeight, width: 81 - controlZoneEdgeInset, height: Self.topBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: bounds.width - 82, y: bounds.height - Self.topBarHeight, width: 82 - controlZoneEdgeInset, height: Self.topBarHeight)).fill()
 
         for annotation in annotations {
             drawAnnotation(annotation)
