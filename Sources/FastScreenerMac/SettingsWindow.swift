@@ -150,7 +150,24 @@ final class SettingsWindow: NSWindow {
         stack.addArrangedSubview(Self.stubNote())
 
         stack.addArrangedSubview(Self.sectionLabel("File"))
-        stack.addArrangedSubview(Self.stubNote())
+        let pathLabel = NSTextField(labelWithString: settings.saveFolderURL.path)
+        pathLabel.lineBreakMode = .byTruncatingMiddle
+        pathLabel.translatesAutoresizingMaskIntoConstraints = false
+        pathLabel.widthAnchor.constraint(equalToConstant: 220).isActive = true
+        let chooseButton = ActionButton(title: "Choose…") { [weak self] in
+            let panel = NSOpenPanel()
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.canCreateDirectories = true
+            panel.directoryURL = settings.saveFolderURL
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+            settings.saveFolderPath = url.path
+            self?.rebuildContent()
+        }
+        let folderRow = NSStackView(views: [pathLabel, chooseButton])
+        folderRow.orientation = .horizontal
+        folderRow.spacing = 8
+        stack.addArrangedSubview(Self.row(title: "Save folder", control: folderRow))
 
         stack.addArrangedSubview(Self.sectionLabel("Frame"))
         stack.addArrangedSubview(Self.row(title: "Color", control: ColorWell(color: settings.frameColor) { settings.frameColor = $0 }))

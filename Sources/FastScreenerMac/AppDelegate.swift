@@ -6,7 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: CaptureWindow!
     var settingsWindow: SettingsWindow!
 
-    static let capturesDirectory = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0]
+    static var capturesDirectory: URL { AppSettings.shared.saveFolderURL }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screen = NSScreen.main!.frame
@@ -21,7 +21,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let frameView = window.contentView as? CaptureFrameView {
             frameView.onCaptureRequested = { [weak self] in self?.captureAndSave() }
             frameView.onSettingsRequested = { [weak self] in self?.showSettings() }
-            frameView.onOpenFolderRequested = { NSWorkspace.shared.open(AppDelegate.capturesDirectory) }
+            frameView.onOpenFolderRequested = {
+                let dir = AppDelegate.capturesDirectory
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                NSWorkspace.shared.open(dir)
+            }
         }
         // Restores the last session's size + position if one was saved;
         // setFrameAutosaveName then keeps saving on every future move/resize.
@@ -99,7 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     } else {
                         name = trimmed.hasSuffix(".png") ? trimmed : "\(trimmed).png"
                     }
-                    let url = Self.capturesDirectory.appendingPathComponent(name)
+                    let dir = Self.capturesDirectory
+                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                    let url = dir.appendingPathComponent(name)
                     try png.write(to: url)
                     print("Captured (\(rep.pixelsWide)x\(rep.pixelsHigh)px) + copied to clipboard -> \(url.path)")
                 } else {

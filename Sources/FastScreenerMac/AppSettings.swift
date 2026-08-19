@@ -44,6 +44,18 @@ final class AppSettings {
 
     var presetSizes: [CGSize] { didSet { save() } } // the 4 Alt+1..4 sizes ("Sizes" category in the original)
 
+    // Where captures get saved ("File" category). nil = the default
+    // Desktop/FastScreener Screens folder (created on first use).
+    var saveFolderPath: String? { didSet { save() } }
+    static let defaultSaveFolder = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("FastScreener Screens")
+    var saveFolderURL: URL {
+        if let path = saveFolderPath, !path.isEmpty {
+            return URL(fileURLWithPath: path)
+        }
+        return Self.defaultSaveFolder
+    }
+
     private init() {
         arrowColor = Self.loadColor(key: "arrowColor") ?? .cyan
         arrowLength = Self.loadNumber(key: "arrowLength") ?? 50
@@ -65,6 +77,7 @@ final class AppSettings {
         dpiScale = defaults.object(forKey: "dpiScale") as? Bool ?? true
 
         presetSizes = Self.loadPresetSizes() ?? Self.defaultProfileSizes
+        saveFolderPath = defaults.string(forKey: "saveFolderPath")
     }
 
     private func save() {
@@ -81,6 +94,7 @@ final class AppSettings {
         defaults.set(dpiScale, forKey: "dpiScale")
         defaults.set(presetSizes.map { Double($0.width) }, forKey: "presetWidths")
         defaults.set(presetSizes.map { Double($0.height) }, forKey: "presetHeights")
+        if let saveFolderPath { defaults.set(saveFolderPath, forKey: "saveFolderPath") } else { defaults.removeObject(forKey: "saveFolderPath") }
         Self.saveColor(arrowColor, key: "arrowColor")
         Self.saveColor(frameColor, key: "frameColor")
         Self.saveColor(numberColor, key: "numberColor")
@@ -218,5 +232,6 @@ final class AppSettings {
         showInfoLabel = true
         dpiScale = true
         presetSizes = Self.defaultProfileSizes
+        saveFolderPath = nil
     }
 }
