@@ -22,8 +22,13 @@ final class CaptureFrameView: NSView {
     private let settings = AppSettings.shared
     // The two icon clusters (hamburger/capture/resolution-cycle, and
     // settings/minimize/close) always sit on this fixed grey, independent
-    // of the user-configurable Panel Color (chromeColor).
+    // of the user-configurable Panel Color (chromeColor). Inset from the
+    // window's outer edge by leftBarWidth/rightBarWidth, so the margin
+    // reads as deliberate rather than the icons just sitting flush
+    // against the edge.
     private let fixedControlBackground = NSColor(calibratedWhite: 0.4, alpha: 1)
+    private let iconClusterInset: CGFloat = CaptureFrameView.leftBarWidth
+    private let iconClusterWidth: CGFloat = 78
 
     private enum DragMode {
         case none
@@ -94,10 +99,9 @@ final class CaptureFrameView: NSView {
         // left, settings/minimize/close on the right) always sit on
         // fixed grey, unaffected by Panel Color — painted over the
         // chrome fill in just those two top-bar slices.
-        let controlZoneEdgeInset: CGFloat = 4
         fixedControlBackground.setFill()
-        NSBezierPath(rect: CGRect(x: controlZoneEdgeInset, y: bounds.height - Self.topBarHeight, width: 81 - controlZoneEdgeInset, height: Self.topBarHeight)).fill()
-        NSBezierPath(rect: CGRect(x: bounds.width - 82, y: bounds.height - Self.topBarHeight, width: 82 - controlZoneEdgeInset, height: Self.topBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: iconClusterInset, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: bounds.width - iconClusterInset - iconClusterWidth, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
 
         for annotation in annotations {
             drawAnnotation(annotation)
@@ -162,18 +166,21 @@ final class CaptureFrameView: NSView {
         let topY = bounds.height - Self.topBarHeight
 
         // Left-to-right: hamburger, capture, resolution-cycle, filename,
-        // [gap], settings, minimize, close.
-        hamburgerButton = IconButton(icon: IconLoader.load("menu_icon"), frame: CGRect(x: 3, y: topY + 3, width: 22, height: 22))
+        // [gap], settings, minimize, close. The two icon clusters sit
+        // inside their fixed-grey zones (iconClusterInset/Width above),
+        // not flush against the window edge.
+        let leftZoneX = iconClusterInset
+        hamburgerButton = IconButton(icon: IconLoader.load("menu_icon"), frame: CGRect(x: leftZoneX, y: topY + 3, width: 22, height: 22))
         hamburgerButton.autoresizingMask = [.minYMargin]
         hamburgerButton.onClick = { [weak self] in self?.showMenu() }
         addSubview(hamburgerButton)
 
-        let captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: 29, y: topY + 3, width: 22, height: 22))
+        let captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: leftZoneX + 26, y: topY + 3, width: 22, height: 22))
         captureButton.autoresizingMask = [.minYMargin]
         captureButton.onClick = { [weak self] in self?.onCaptureRequested?() }
         addSubview(captureButton)
 
-        let resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: 55, y: topY + 3, width: 22, height: 22))
+        let resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: leftZoneX + 52, y: topY + 3, width: 22, height: 22))
         resCycleButton.autoresizingMask = [.minYMargin]
         resCycleButton.onClick = { [weak self] in self?.cyclePreset() }
         addSubview(resCycleButton)
@@ -181,7 +188,9 @@ final class CaptureFrameView: NSView {
         // Fixed width sized to comfortably hold filenameMaxLength (42)
         // characters at this font — not stretchy, unlike a typical wide
         // toolbar text field.
-        filenameField = NSTextField(frame: CGRect(x: 81, y: topY + 4, width: 260, height: 20))
+        let filenameX = leftZoneX + iconClusterWidth + 4
+        let rightZoneX = bounds.width - iconClusterInset - iconClusterWidth
+        filenameField = NSTextField(frame: CGRect(x: filenameX, y: topY + 4, width: rightZoneX - 4 - filenameX, height: 20))
         filenameField.placeholderString = "File name (\(Self.filenameMaxLength) symbols, optional)"
         filenameField.font = .systemFont(ofSize: 11)
         filenameField.autoresizingMask = [.minYMargin]
@@ -189,20 +198,20 @@ final class CaptureFrameView: NSView {
         filenameField.delegate = self
         addSubview(filenameField)
 
-        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: bounds.width - 25, y: topY + 3, width: 22, height: 22))
-        closeButton.autoresizingMask = [.minXMargin, .minYMargin]
-        closeButton.onClick = { NSApplication.shared.terminate(nil) }
-        addSubview(closeButton)
+        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: rightZoneX, y: topY + 3, width: 22, height: 22))
+        settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
+        settingsButton.onClick = { [weak self] in self?.onSettingsRequested?() }
+        addSubview(settingsButton)
 
-        let minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: bounds.width - 51, y: topY + 3, width: 22, height: 22))
+        let minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: rightZoneX + 26, y: topY + 3, width: 22, height: 22))
         minimizeButton.autoresizingMask = [.minXMargin, .minYMargin]
         minimizeButton.onClick = { [weak self] in self?.window?.miniaturize(nil) }
         addSubview(minimizeButton)
 
-        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: bounds.width - 77, y: topY + 3, width: 22, height: 22))
-        settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
-        settingsButton.onClick = { [weak self] in self?.onSettingsRequested?() }
-        addSubview(settingsButton)
+        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + 52, y: topY + 3, width: 22, height: 22))
+        closeButton.autoresizingMask = [.minXMargin, .minYMargin]
+        closeButton.onClick = { NSApplication.shared.terminate(nil) }
+        addSubview(closeButton)
 
         // Anchored to the bottom of the left bar (just above the status
         // bar), not the top: .maxYMargin in autoresizingMask leaves the

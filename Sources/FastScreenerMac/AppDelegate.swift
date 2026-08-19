@@ -23,6 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             frameView.onSettingsRequested = { [weak self] in self?.showSettings() }
             frameView.onOpenFolderRequested = { NSWorkspace.shared.open(AppDelegate.capturesDirectory) }
         }
+        // Restores the last session's size + position if one was saved;
+        // setFrameAutosaveName then keeps saving on every future move/resize.
+        _ = window.setFrameUsingName("MainCaptureWindow")
+        window.setFrameAutosaveName("MainCaptureWindow")
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(window.contentView)
         NSApp.activate(ignoringOtherApps: true)
