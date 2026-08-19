@@ -186,6 +186,12 @@ final class SettingsWindow: NSWindow {
         stack.addArrangedSubview(Self.sectionLabel("Appearance"))
         stack.addArrangedSubview(Self.row(title: "Panel color (chrome)", control: ColorWell(color: settings.chromeColor) { settings.chromeColor = $0 }))
         stack.addArrangedSubview(CheckboxControl(title: "Clear elements after screenshot", isOn: settings.clearElementsAfterCapture) { settings.clearElementsAfterCapture = $0 })
+        stack.addArrangedSubview(CheckboxControl(title: "DPI Scale", isOn: settings.dpiScale) { settings.dpiScale = $0 })
+        let dpiHint = NSTextField(wrappingLabelWithString: "When on, the saved/copied image always matches the size shown exactly in pixels, regardless of Retina scale. When off, it keeps the display's native pixel density.")
+        dpiHint.font = .systemFont(ofSize: 11)
+        dpiHint.textColor = .secondaryLabelColor
+        dpiHint.preferredMaxLayoutWidth = 340
+        stack.addArrangedSubview(dpiHint)
 
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false

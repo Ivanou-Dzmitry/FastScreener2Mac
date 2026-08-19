@@ -36,6 +36,11 @@ final class AppSettings {
     var clearElementsAfterCapture: Bool { didSet { save() } }
     var saveToFile: Bool { didSet { save() } } // if off, F4 only copies to clipboard
     var showInfoLabel: Bool { didSet { save() } } // the Pos/Size/Elements status text
+    // When on (default, matches the original), the captured image is
+    // downsampled to exactly captureRect's point-size in pixels, so a
+    // 650x366 capture is always a 650x366px file regardless of Retina
+    // scale. When off, the file keeps the display's native pixel density.
+    var dpiScale: Bool { didSet { save() } }
 
     var presetSizes: [CGSize] { didSet { save() } } // the 4 Alt+1..4 sizes ("Sizes" category in the original)
 
@@ -57,6 +62,7 @@ final class AppSettings {
         clearElementsAfterCapture = defaults.object(forKey: "clearElementsAfterCapture") as? Bool ?? true
         saveToFile = defaults.object(forKey: "saveToFile") as? Bool ?? true
         showInfoLabel = defaults.object(forKey: "showInfoLabel") as? Bool ?? true
+        dpiScale = defaults.object(forKey: "dpiScale") as? Bool ?? true
 
         presetSizes = Self.loadPresetSizes() ?? Self.defaultProfileSizes
     }
@@ -72,6 +78,7 @@ final class AppSettings {
         defaults.set(clearElementsAfterCapture, forKey: "clearElementsAfterCapture")
         defaults.set(saveToFile, forKey: "saveToFile")
         defaults.set(showInfoLabel, forKey: "showInfoLabel")
+        defaults.set(dpiScale, forKey: "dpiScale")
         defaults.set(presetSizes.map { Double($0.width) }, forKey: "presetWidths")
         defaults.set(presetSizes.map { Double($0.height) }, forKey: "presetHeights")
         Self.saveColor(arrowColor, key: "arrowColor")
@@ -119,6 +126,7 @@ final class AppSettings {
         var clearElementsAfterCapture: Bool
         var saveToFile: Bool
         var showInfoLabel: Bool
+        var dpiScale: Bool
         var presetWidths: [Double]
         var presetHeights: [Double]
     }
@@ -130,7 +138,7 @@ final class AppSettings {
             frameFixedWidth: frameFixedWidth, frameFixedHeight: frameFixedHeight,
             numberColor: Self.encode(numberColor), numberFontSize: numberFontSize, numberFontFamily: numberFontFamily,
             chromeColor: Self.encode(chromeColor), clearElementsAfterCapture: clearElementsAfterCapture,
-            saveToFile: saveToFile, showInfoLabel: showInfoLabel,
+            saveToFile: saveToFile, showInfoLabel: showInfoLabel, dpiScale: dpiScale,
             presetWidths: presetSizes.map { Double($0.width) }, presetHeights: presetSizes.map { Double($0.height) }
         )
     }
@@ -150,6 +158,7 @@ final class AppSettings {
         clearElementsAfterCapture = snapshot.clearElementsAfterCapture
         saveToFile = snapshot.saveToFile
         showInfoLabel = snapshot.showInfoLabel
+        dpiScale = snapshot.dpiScale
         if snapshot.presetWidths.count == snapshot.presetHeights.count, !snapshot.presetWidths.isEmpty {
             presetSizes = zip(snapshot.presetWidths, snapshot.presetHeights).map { CGSize(width: $0, height: $1) }
         }
@@ -207,6 +216,7 @@ final class AppSettings {
         clearElementsAfterCapture = true
         saveToFile = true
         showInfoLabel = true
+        dpiScale = true
         presetSizes = Self.defaultProfileSizes
     }
 }

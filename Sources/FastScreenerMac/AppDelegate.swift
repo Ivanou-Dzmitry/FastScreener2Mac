@@ -67,12 +67,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let rawImage = try await ScreenCapture.captureRect(screenRect, excludingWindowNumbers: excludedWindowNumbers)
                 let finalImage = Self.composite(annotations: annotations, onto: rawImage, size: interior.size, offset: interior.origin)
 
+                // DPI Scale (on by default, matches the original): the
+                // raw capture is at the display's native pixel density
+                // (e.g. 2x on Retina), so a 650x366 capture would
+                // otherwise save as a 1300x732px file. This resamples
+                // down to exactly interior.size in actual pixels, so
+                // the size you set is always the size you get,
+                // regardless of the display's scale factor.
+                let pasteboardImage: NSImage
+                let pngRep: NSBitmapImageRep?
+                if AppSettings.shared.dpiScale, let exactRep = Self.pixelExactBitmap(from: finalImage, pixelSize: interior.size) {
+                    let exactImage = NSImage(size: interior.size)
+                    exactImage.addRepresentation(exactRep)
+                    pasteboardImage = exactImage
+                    pngRep = exactRep
+                } else {
+                    pasteboardImage = finalImage
+                    pngRep = finalImage.tiffRepresentation.flatMap { NSBitmapImageRep(data: $0) }
+                }
+
                 NSPasteboard.general.clearContents()
-                NSPasteboard.general.writeObjects([finalImage])
+                NSPasteboard.general.writeObjects([pasteboardImage])
 
                 if AppSettings.shared.saveToFile,
-                   let tiff = finalImage.tiffRepresentation,
-                   let rep = NSBitmapImageRep(data: tiff),
+                   let rep = pngRep,
                    let png = rep.representation(using: .png, properties: [:]) {
                     let trimmed = filenameOverride.trimmingCharacters(in: .whitespaces)
                     let name: String
@@ -83,7 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                     let url = Self.capturesDirectory.appendingPathComponent(name)
                     try png.write(to: url)
-                    print("Captured + copied to clipboard -> \(url.path)")
+                    print("Captured (\(rep.pixelsWide)x\(rep.pixelsHigh)px) + copied to clipboard -> \(url.path)")
                 } else {
                     print("Captured + copied to clipboard (file save off)")
                 }
@@ -95,6 +113,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("Capture failed: \(error)")
             }
         }
+    }
+
+    // Renders `image` into a bitmap whose pixel dimensions exactly equal
+    // `pixelSize` (rep.size set to match, so it's 1 point == 1 pixel),
+    // downsampling from whatever native resolution `image` actually
+    // carries.
+    private static func pixelExactBitmap(from image: NSImage, pixelSize: CGSize) -> NSBitmapImageRep? {
+        let width = max(1, Int(pixelSize.width.rounded()))
+        let height = max(1, Int(pixelSize.height.rounded()))
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+        rep.size = CGSize(width: width, height: height)
+
+        guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: CGRect(x: 0, y: 0, width: width, height: height), from: .zero, operation: .copy, fraction: 1.0)
+        NSGraphicsContext.restoreGraphicsState()
+        return rep
     }
 
     // Bakes the drawn annotations into the captured pixels, shifting them

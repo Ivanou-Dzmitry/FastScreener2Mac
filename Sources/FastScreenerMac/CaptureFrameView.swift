@@ -144,7 +144,14 @@ final class CaptureFrameView: NSView {
         guard settings.showInfoLabel else { return }
         let origin = window?.frame.origin ?? .zero
         let rect = captureRect
-        let text = "Pos:(\(Int(origin.x)),\(Int(origin.y)))  Size:\(Int(rect.width))×\(Int(rect.height))  Elements:\(annotations.count)"
+        // "Output" is what the saved/copied file will actually be, in
+        // pixels: with DPI Scale on it always matches Size exactly
+        // (downsampled from native resolution); off, it's the display's
+        // native pixel density (e.g. 2x on Retina).
+        let scale = window?.backingScaleFactor ?? 1
+        let outputW = settings.dpiScale ? Int(rect.width) : Int(rect.width * scale)
+        let outputH = settings.dpiScale ? Int(rect.height) : Int(rect.height * scale)
+        let text = "Pos:(\(Int(origin.x)),\(Int(origin.y)))  Size:\(Int(rect.width))×\(Int(rect.height))  Output:\(outputW)×\(outputH)px  Elements:\(annotations.count)"
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor(calibratedWhite: 0.85, alpha: 1),
@@ -490,7 +497,14 @@ final class CaptureFrameView: NSView {
     private func applyPreset(_ index: Int) {
         guard let window else { return }
         currentPresetIndex = index
-        let size = presets[index]
+        // presets[index] is the desired CAPTURE size (captureRect), not
+        // the whole window — the window itself needs the chrome added
+        // back on top, or the interior ends up smaller than requested.
+        let captureSize = presets[index]
+        let size = CGSize(
+            width: captureSize.width + Self.leftBarWidth + Self.rightBarWidth,
+            height: captureSize.height + Self.topBarHeight + Self.bottomBarHeight
+        )
         let center = CGPoint(x: window.frame.midX, y: window.frame.midY)
         let frame = CGRect(x: center.x - size.width / 2, y: center.y - size.height / 2, width: size.width, height: size.height)
         window.setFrame(clampToVirtualScreen(frame), display: true)
