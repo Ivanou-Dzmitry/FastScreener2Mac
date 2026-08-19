@@ -144,14 +144,16 @@ final class CaptureFrameView: NSView {
         guard settings.showInfoLabel else { return }
         let origin = window?.frame.origin ?? .zero
         let rect = captureRect
-        // "Output" is what the saved/copied file will actually be, in
-        // pixels: with DPI Scale on it always matches Size exactly
-        // (downsampled from native resolution); off, it's the display's
-        // native pixel density (e.g. 2x on Retina).
+        // Matches the original's "Size W: 975 (650)" format: the native
+        // display pixels the capture is actually grabbed at (real, before
+        // any DPI correction) with the target point size — what the file
+        // will actually be once DPI Scale downsamples it — in parens.
+        // Always shows the real scale factor's effect, regardless of
+        // whether DPI Scale is currently on or off.
         let scale = window?.backingScaleFactor ?? 1
-        let outputW = settings.dpiScale ? Int(rect.width) : Int(rect.width * scale)
-        let outputH = settings.dpiScale ? Int(rect.height) : Int(rect.height * scale)
-        let text = "Pos:(\(Int(origin.x)),\(Int(origin.y)))  Size:\(Int(rect.width))×\(Int(rect.height))  Output:\(outputW)×\(outputH)px  Elements:\(annotations.count)"
+        let nativeW = Int((rect.width * scale).rounded())
+        let nativeH = Int((rect.height * scale).rounded())
+        let text = "Pos:(\(Int(origin.x)),\(Int(origin.y)))  Size W: \(nativeW) (\(Int(rect.width))), H: \(nativeH) (\(Int(rect.height)))  Elements:\(annotations.count)"
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor(calibratedWhite: 0.85, alpha: 1),
