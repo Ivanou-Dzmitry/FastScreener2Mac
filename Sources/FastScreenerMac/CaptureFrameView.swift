@@ -75,10 +75,14 @@ final class CaptureFrameView: NSView {
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
+        // Bottom bar is intentionally NOT filled across its full width:
+        // only the left segment (under the left toolbar) is opaque
+        // chrome; the rest stays fully transparent (shows through to
+        // whatever's beneath), with the status text floating on top of
+        // that transparent area when Show Info is on.
         settings.chromeColor.setFill()
         NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
-        NSBezierPath(rect: CGRect(x: Self.leftBarWidth, y: 0, width: bounds.width - Self.leftBarWidth, height: Self.bottomBarHeight)).fill()
 
         for annotation in annotations {
             drawAnnotation(annotation)
@@ -125,6 +129,7 @@ final class CaptureFrameView: NSView {
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor(calibratedWhite: 0.85, alpha: 1),
+            .backgroundColor: NSColor.black.withAlphaComponent(0.55),
         ]
         text.draw(at: CGPoint(x: Self.leftBarWidth + 6, y: 4), withAttributes: attrs)
     }
