@@ -39,14 +39,20 @@ enum Annotation {
     }
 
     private static func drawArrowShape(from start: CGPoint, to end: CGPoint, color: NSColor, lineWidth: CGFloat, headLength: CGFloat) {
+        let angle = atan2(end.y - start.y, end.x - start.x)
+
+        // Stop the shaft short of the tip by headLength, instead of
+        // running it all the way to `end` underneath the head triangle
+        // — otherwise a thick shaft can visibly poke out past the
+        // triangle's edges right at the point.
+        let shaftEnd = CGPoint(x: end.x - headLength * cos(angle), y: end.y - headLength * sin(angle))
         let path = NSBezierPath()
         path.move(to: start)
-        path.line(to: end)
+        path.line(to: shaftEnd)
         path.lineWidth = lineWidth
         color.setStroke()
         path.stroke()
 
-        let angle = atan2(end.y - start.y, end.x - start.x)
         let headAngle: CGFloat = .pi / 7
         let p1 = CGPoint(x: end.x - headLength * cos(angle - headAngle), y: end.y - headLength * sin(angle - headAngle))
         let p2 = CGPoint(x: end.x - headLength * cos(angle + headAngle), y: end.y - headLength * sin(angle + headAngle))

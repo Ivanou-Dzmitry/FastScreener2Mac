@@ -450,15 +450,20 @@ final class CaptureFrameView: NSView {
         return d
     }
 
+    // Anchor (the click point) is the tail; the arrowhead extends from
+    // it toward wherever the drag pointed — dragging down draws an
+    // arrow pointing down, matching the intuitive "drag toward where
+    // you want it to point" (this was backwards — head fixed at anchor,
+    // tail following the drag — until corrected here).
     private func arrowPoints(anchor: CGPoint, direction: Int, length: CGFloat) -> (start: CGPoint, end: CGPoint) {
-        let start: CGPoint
+        let end: CGPoint
         switch direction {
-        case 1: start = CGPoint(x: anchor.x - length, y: anchor.y - length) // ↗
-        case 2: start = CGPoint(x: anchor.x - length, y: anchor.y + length) // ↘
-        case 3: start = CGPoint(x: anchor.x + length, y: anchor.y + length) // ↙
-        default: start = CGPoint(x: anchor.x + length, y: anchor.y - length) // ↖
+        case 1: end = CGPoint(x: anchor.x - length, y: anchor.y - length) // ↙
+        case 2: end = CGPoint(x: anchor.x - length, y: anchor.y + length) // ↖
+        case 3: end = CGPoint(x: anchor.x + length, y: anchor.y + length) // ↗
+        default: end = CGPoint(x: anchor.x + length, y: anchor.y - length) // ↘
         }
-        return (start, anchor)
+        return (anchor, end)
     }
 
     // MARK: - Keyboard: tool switching, undo/clear, size presets
