@@ -186,11 +186,14 @@ final class CaptureFrameView: NSView {
         addSubview(resCycleButton)
 
         // Fixed width sized to comfortably hold filenameMaxLength (42)
-        // characters at this font — not stretchy, unlike a typical wide
-        // toolbar text field.
+        // characters at this font — genuinely fixed, not derived from
+        // bounds.width at setup time: since the window's initial size
+        // can now be a restored (possibly large, e.g. Max Size) frame
+        // via setFrameAutosaveName, a width computed from bounds.width
+        // here would permanently bake in whatever that happened to be.
         let filenameX = leftZoneX + iconClusterWidth + 4
         let rightZoneX = bounds.width - iconClusterInset - iconClusterWidth
-        filenameField = NSTextField(frame: CGRect(x: filenameX, y: topY + 4, width: rightZoneX - 4 - filenameX, height: 20))
+        filenameField = NSTextField(frame: CGRect(x: filenameX, y: topY + 4, width: 260, height: 20))
         filenameField.placeholderString = "File name (\(Self.filenameMaxLength) symbols, optional)"
         filenameField.font = .systemFont(ofSize: 11)
         filenameField.autoresizingMask = [.minYMargin]
