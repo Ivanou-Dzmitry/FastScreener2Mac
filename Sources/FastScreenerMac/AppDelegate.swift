@@ -65,54 +65,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let excludedWindowNumbers = [window.windowNumber]
         let annotations = frameView.annotations
         let filenameOverride = frameView.filenameOverride
+        let backingScale = window.backingScaleFactor
 
         Task {
             do {
                 let rawImage = try await ScreenCapture.captureRect(screenRect, excludingWindowNumbers: excludedWindowNumbers)
                 let finalImage = Self.composite(annotations: annotations, onto: rawImage, size: interior.size, offset: interior.origin)
 
+                let settings = AppSettings.shared
                 // DPI Scale (on by default, matches the original): the
                 // raw capture is at the display's native pixel density
                 // (e.g. 2x on Retina), so a 650x366 capture would
                 // otherwise save as a 1300x732px file. This resamples
-                // down to exactly interior.size in actual pixels, so
-                // the size you set is always the size you get,
-                // regardless of the display's scale factor.
-                let pasteboardImage: NSImage
-                let pngRep: NSBitmapImageRep?
-                if AppSettings.shared.dpiScale, let exactRep = Self.pixelExactBitmap(from: finalImage, pixelSize: interior.size) {
-                    let exactImage = NSImage(size: interior.size)
-                    exactImage.addRepresentation(exactRep)
-                    pasteboardImage = exactImage
-                    pngRep = exactRep
-                } else {
-                    pasteboardImage = finalImage
-                    pngRep = finalImage.tiffRepresentation.flatMap { NSBitmapImageRep(data: $0) }
+                // down to exactly interior.size in actual pixels when on,
+                // so the size you set is always the size you get; off
+                // keeps the display's native pixel density.
+                let outputPixelSize = settings.dpiScale
+                    ? interior.size
+                    : CGSize(width: interior.width * backingScale, height: interior.height * backingScale)
+
+                // PNG 32bpp keeps alpha; 24bpp drops it; 8bpp is
+                // approximated as grayscale (NSBitmapImageRep has no
+                // simple indexed-palette API to match Windows' true
+                // 8bpp/256-color PNGs). JPEG has no alpha channel either
+                // way.
+                let isJPEG = settings.fileFormat == "jpg"
+                let wantsAlpha = !isJPEG && settings.pngDepth == "32bpp"
+                let wantsGrayscale = !isJPEG && settings.pngDepth == "8bpp"
+
+                guard let rep = Self.pixelExactBitmap(from: finalImage, pixelSize: outputPixelSize, hasAlpha: wantsAlpha, grayscale: wantsGrayscale) else {
+                    print("Capture failed: could not render output bitmap")
+                    return
                 }
+                let exactImage = NSImage(size: outputPixelSize)
+                exactImage.addRepresentation(rep)
 
                 NSPasteboard.general.clearContents()
-                NSPasteboard.general.writeObjects([pasteboardImage])
+                NSPasteboard.general.writeObjects([exactImage])
 
-                if AppSettings.shared.saveToFile,
-                   let rep = pngRep,
-                   let png = rep.representation(using: .png, properties: [:]) {
+                let fileData: Data?
+                let ext: String
+                if isJPEG {
+                    let quality = Float(settings.jpegQuality) / 100
+                    fileData = rep.representation(using: .jpeg, properties: [.compressionFactor: NSNumber(value: quality)])
+                    ext = "jpg"
+                } else {
+                    fileData = rep.representation(using: .png, properties: [:])
+                    ext = "png"
+                }
+
+                if settings.saveToFile, let data = fileData {
                     let trimmed = filenameOverride.trimmingCharacters(in: .whitespaces)
                     let name: String
                     if trimmed.isEmpty {
-                        name = "FastScreener_\(Self.timestamp()).png"
+                        name = "FastScreener_\(Self.timestamp()).\(ext)"
                     } else {
-                        name = trimmed.hasSuffix(".png") ? trimmed : "\(trimmed).png"
+                        name = trimmed.hasSuffix(".\(ext)") ? trimmed : "\(trimmed).\(ext)"
                     }
                     let dir = Self.capturesDirectory
                     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                     let url = dir.appendingPathComponent(name)
-                    try png.write(to: url)
-                    print("Captured (\(rep.pixelsWide)x\(rep.pixelsHigh)px) + copied to clipboard -> \(url.path)")
+                    try data.write(to: url)
+                    print("Captured (\(rep.pixelsWide)x\(rep.pixelsHigh)px, \(ext)) + copied to clipboard -> \(url.path)")
                 } else {
                     print("Captured + copied to clipboard (file save off)")
                 }
 
-                if AppSettings.shared.clearElementsAfterCapture {
+                if settings.clearElementsAfterCapture {
                     frameView.clearAnnotations()
                 }
             } catch {
@@ -123,9 +142,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Renders `image` into a bitmap whose pixel dimensions exactly equal
     // `pixelSize` (rep.size set to match, so it's 1 point == 1 pixel),
-    // downsampling from whatever native resolution `image` actually
-    // carries.
-    private static func pixelExactBitmap(from image: NSImage, pixelSize: CGSize) -> NSBitmapImageRep? {
+    // downsampling/converting from whatever native resolution/format
+    // `image` actually carries.
+    private static func pixelExactBitmap(from image: NSImage, pixelSize: CGSize, hasAlpha: Bool, grayscale: Bool) -> NSBitmapImageRep? {
         let width = max(1, Int(pixelSize.width.rounded()))
         let height = max(1, Int(pixelSize.height.rounded()))
         guard let rep = NSBitmapImageRep(
@@ -133,10 +152,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pixelsWide: width,
             pixelsHigh: height,
             bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
+            samplesPerPixel: grayscale ? 1 : (hasAlpha ? 4 : 3),
+            hasAlpha: grayscale ? false : hasAlpha,
             isPlanar: false,
-            colorSpaceName: .deviceRGB,
+            colorSpaceName: grayscale ? .deviceWhite : .deviceRGB,
             bytesPerRow: 0,
             bitsPerPixel: 0
         ) else { return nil }

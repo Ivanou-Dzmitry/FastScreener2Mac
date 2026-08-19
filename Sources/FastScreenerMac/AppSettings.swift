@@ -56,6 +56,13 @@ final class AppSettings {
         return Self.defaultSaveFolder
     }
 
+    // "png" or "jpg". "32bpp"/"24bpp"/"8bpp" for pngDepth (only meaningful
+    // when fileFormat == "png"). jpegQuality 1...100 (only meaningful when
+    // fileFormat == "jpg").
+    var fileFormat: String { didSet { save() } }
+    var pngDepth: String { didSet { save() } }
+    var jpegQuality: Int { didSet { save() } }
+
     private init() {
         arrowColor = Self.loadColor(key: "arrowColor") ?? .cyan
         arrowLength = Self.loadNumber(key: "arrowLength") ?? 50
@@ -78,6 +85,9 @@ final class AppSettings {
 
         presetSizes = Self.loadPresetSizes() ?? Self.defaultProfileSizes
         saveFolderPath = defaults.string(forKey: "saveFolderPath")
+        fileFormat = defaults.string(forKey: "fileFormat") ?? "png"
+        pngDepth = defaults.string(forKey: "pngDepth") ?? "32bpp"
+        jpegQuality = defaults.object(forKey: "jpegQuality") as? Int ?? 75
     }
 
     private func save() {
@@ -95,6 +105,9 @@ final class AppSettings {
         defaults.set(presetSizes.map { Double($0.width) }, forKey: "presetWidths")
         defaults.set(presetSizes.map { Double($0.height) }, forKey: "presetHeights")
         if let saveFolderPath { defaults.set(saveFolderPath, forKey: "saveFolderPath") } else { defaults.removeObject(forKey: "saveFolderPath") }
+        defaults.set(fileFormat, forKey: "fileFormat")
+        defaults.set(pngDepth, forKey: "pngDepth")
+        defaults.set(jpegQuality, forKey: "jpegQuality")
         Self.saveColor(arrowColor, key: "arrowColor")
         Self.saveColor(frameColor, key: "frameColor")
         Self.saveColor(numberColor, key: "numberColor")
@@ -233,5 +246,8 @@ final class AppSettings {
         dpiScale = true
         presetSizes = Self.defaultProfileSizes
         saveFolderPath = nil
+        fileFormat = "png"
+        pngDepth = "32bpp"
+        jpegQuality = 75
     }
 }

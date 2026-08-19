@@ -77,6 +77,24 @@ final class ActionButton: NSButton {
     @objc private func tapped() { onClick() }
 }
 
+final class ChoicePicker: NSPopUpButton {
+    private let onChange: (String) -> Void
+
+    init(options: [String], selected: String, onChange: @escaping (String) -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero, pullsDown: false)
+        translatesAutoresizingMaskIntoConstraints = false
+        addItems(withTitles: options)
+        selectItem(withTitle: selected)
+        target = self
+        action = #selector(changed)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    @objc private func changed() { onChange(titleOfSelectedItem ?? "") }
+}
+
 // Dropdown of every installed font family, instead of free-typing a
 // name and hoping it matches something NSFont(name:) can resolve.
 final class FontPicker: NSPopUpButton {
@@ -168,6 +186,16 @@ final class SettingsWindow: NSWindow {
         folderRow.orientation = .horizontal
         folderRow.spacing = 8
         stack.addArrangedSubview(Self.row(title: "Save folder", control: folderRow))
+
+        stack.addArrangedSubview(Self.row(title: "Format", control: ChoicePicker(options: ["png", "jpg"], selected: settings.fileFormat) { [weak self] value in
+            settings.fileFormat = value
+            self?.rebuildContent() // format switch changes which of PNG depth / JPEG quality applies below
+        }))
+        if settings.fileFormat == "jpg" {
+            stack.addArrangedSubview(Self.row(title: "JPEG quality (1-100)", control: NumberField(value: CGFloat(settings.jpegQuality)) { settings.jpegQuality = Int(min(100, max(1, $0))) }))
+        } else {
+            stack.addArrangedSubview(Self.row(title: "PNG depth", control: ChoicePicker(options: ["32bpp", "24bpp", "8bpp"], selected: settings.pngDepth) { settings.pngDepth = $0 }))
+        }
 
         stack.addArrangedSubview(Self.sectionLabel("Frame"))
         stack.addArrangedSubview(Self.row(title: "Color", control: ColorWell(color: settings.frameColor) { settings.frameColor = $0 }))
