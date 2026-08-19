@@ -40,24 +40,6 @@ final class NumberField: NSTextField, NSTextFieldDelegate {
     }
 }
 
-final class StringField: NSTextField, NSTextFieldDelegate {
-    private let onChange: (String) -> Void
-
-    init(value: String, placeholder: String, onChange: @escaping (String) -> Void) {
-        self.onChange = onChange
-        super.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
-        widthAnchor.constraint(equalToConstant: 140).isActive = true
-        stringValue = value
-        placeholderString = placeholder
-        delegate = self
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func controlTextDidChange(_ obligatory: Notification) { onChange(stringValue) }
-}
-
 final class CheckboxControl: NSButton {
     private let onChange: (Bool) -> Void
 
@@ -77,12 +59,47 @@ final class CheckboxControl: NSButton {
     @objc private func changed() { onChange(state == .on) }
 }
 
+// Dropdown of every installed font family, instead of free-typing a
+// name and hoping it matches something NSFont(name:) can resolve.
+final class FontPicker: NSPopUpButton {
+    private let onChange: (String) -> Void
+    private static let systemDefaultTitle = "System Default"
+
+    init(selectedFamily: String, onChange: @escaping (String) -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero, pullsDown: false)
+        translatesAutoresizingMaskIntoConstraints = false
+        widthAnchor.constraint(equalToConstant: 180).isActive = true
+
+        addItem(withTitle: Self.systemDefaultTitle)
+        let families = NSFontManager.shared.availableFontFamilies.sorted()
+        addItems(withTitles: families)
+
+        if !selectedFamily.isEmpty, families.contains(selectedFamily) {
+            selectItem(withTitle: selectedFamily)
+        } else {
+            selectItem(withTitle: Self.systemDefaultTitle)
+        }
+
+        target = self
+        action = #selector(changed)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    @objc private func changed() {
+        let title = titleOfSelectedItem ?? Self.systemDefaultTitle
+        onChange(title == Self.systemDefaultTitle ? "" : title)
+    }
+}
+
 final class SettingsWindow: NSWindow {
     convenience init() {
-        self.init(contentRect: CGRect(x: 0, y: 0, width: 340, height: 520), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        self.init(contentRect: CGRect(x: 0, y: 0, width: 380, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         title = "Settings"
         isReleasedWhenClosed = false
         level = .floating
+        minSize = CGSize(width: 340, height: 240)
 
         let settings = AppSettings.shared
 
@@ -107,13 +124,13 @@ final class SettingsWindow: NSWindow {
         let frameHint = NSTextField(wrappingLabelWithString: "Fixed width/height is the box a plain middle-click places with the Frame tool; dragging still draws a free-size box.")
         frameHint.font = .systemFont(ofSize: 11)
         frameHint.textColor = .secondaryLabelColor
-        frameHint.preferredMaxLayoutWidth = 280
+        frameHint.preferredMaxLayoutWidth = 320
         stack.addArrangedSubview(frameHint)
 
         stack.addArrangedSubview(Self.sectionLabel("Number"))
         stack.addArrangedSubview(Self.row(title: "Color", control: ColorWell(color: settings.numberColor) { settings.numberColor = $0 }))
         stack.addArrangedSubview(Self.row(title: "Font size (px)", control: NumberField(value: settings.numberFontSize) { settings.numberFontSize = max(6, $0) }))
-        stack.addArrangedSubview(Self.row(title: "Font family (blank = default)", control: StringField(value: settings.numberFontFamily, placeholder: "System") { settings.numberFontFamily = $0 }))
+        stack.addArrangedSubview(Self.row(title: "Font family", control: FontPicker(selectedFamily: settings.numberFontFamily) { settings.numberFontFamily = $0 }))
 
         stack.addArrangedSubview(Self.sectionLabel("Panel"))
         stack.addArrangedSubview(Self.row(title: "Panel color (chrome)", control: ColorWell(color: settings.chromeColor) { settings.chromeColor = $0 }))
@@ -124,9 +141,18 @@ final class SettingsWindow: NSWindow {
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: container.topAnchor),
             stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
-        contentView = container
+
+        let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.hasVerticalScroller = true
+        scrollView.drawsBackground = false
+        scrollView.documentView = container
+        contentView = scrollView
+
+        container.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor).isActive = true
     }
 
     private static func sectionLabel(_ text: String) -> NSTextField {
