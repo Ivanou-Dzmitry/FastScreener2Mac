@@ -20,9 +20,10 @@ final class CaptureFrameView: NSView {
     private let borderWidth: CGFloat = 1.5
     private let borderColor = NSColor.black
     private let settings = AppSettings.shared
-    // Close/minimize/settings always sit on this fixed grey, independent
+    // The two icon clusters (hamburger/capture/resolution-cycle, and
+    // settings/minimize/close) always sit on this fixed grey, independent
     // of the user-configurable Panel Color (chromeColor).
-    private let fixedControlBackground = NSColor(calibratedWhite: 0.55, alpha: 1)
+    private let fixedControlBackground = NSColor(calibratedWhite: 0.4, alpha: 1)
 
     private enum DragMode {
         case none
@@ -89,10 +90,12 @@ final class CaptureFrameView: NSView {
         NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - Self.rightBarWidth, y: 0, width: Self.rightBarWidth, height: bounds.height)).fill()
 
-        // Settings/minimize/close always sit on fixed grey, unaffected
-        // by Panel Color — painted over the chrome fill in just that
-        // top-right slice.
+        // Both icon clusters (hamburger/capture/resolution-cycle on the
+        // left, settings/minimize/close on the right) always sit on
+        // fixed grey, unaffected by Panel Color — painted over the
+        // chrome fill in just those two top-bar slices.
         fixedControlBackground.setFill()
+        NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: 81, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - 82, y: bounds.height - Self.topBarHeight, width: 82, height: Self.topBarHeight)).fill()
 
         for annotation in annotations {
