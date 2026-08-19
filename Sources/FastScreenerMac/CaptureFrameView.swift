@@ -142,10 +142,13 @@ final class CaptureFrameView: NSView {
         resCycleButton.onClick = { [weak self] in self?.cyclePreset() }
         addSubview(resCycleButton)
 
-        filenameField = NSTextField(frame: CGRect(x: 81, y: topY + 4, width: bounds.width - 81 - 81, height: 20))
+        // Fixed width sized to comfortably hold filenameMaxLength (42)
+        // characters at this font — not stretchy, unlike a typical wide
+        // toolbar text field.
+        filenameField = NSTextField(frame: CGRect(x: 81, y: topY + 4, width: 260, height: 20))
         filenameField.placeholderString = "File name (\(Self.filenameMaxLength) symbols, optional)"
         filenameField.font = .systemFont(ofSize: 11)
-        filenameField.autoresizingMask = [.width, .minYMargin]
+        filenameField.autoresizingMask = [.minYMargin]
         filenameField.usesSingleLineMode = true
         filenameField.delegate = self
         addSubview(filenameField)
