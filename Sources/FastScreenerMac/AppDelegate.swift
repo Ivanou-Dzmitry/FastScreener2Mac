@@ -84,33 +84,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     ? interior.size
                     : CGSize(width: interior.width * backingScale, height: interior.height * backingScale)
 
-                // PNG 32bpp keeps alpha; 24bpp/8bpp both drop it (macOS
-                // has no simple indexed-palette API to match Windows'
-                // true 8bpp/256-color PNGs, and an earlier grayscale-
-                // colorspace attempt for it turned out unreliable — an
-                // RGB rep is the well-tested path). JPEG has no alpha
-                // channel either way.
-                let isJPEG = settings.fileFormat == "jpg"
-                let wantsAlpha = !isJPEG && settings.pngDepth == "32bpp"
-
-                guard let rep = Self.pixelExactBitmap(from: finalImage, pixelSize: outputPixelSize, hasAlpha: wantsAlpha) else {
+                // Always render into an RGBA (alpha) context — Core
+                // Graphics doesn't reliably support a live drawing
+                // context backed by a tightly-packed no-alpha RGB
+                // bitmap (a 3-byte-per-pixel target isn't a supported
+                // CGBitmapContext pixel format), which is why 24bpp/JPEG
+                // failed outright when rendered directly into one.
+                guard let rgbaRep = Self.pixelExactBitmap(from: finalImage, pixelSize: outputPixelSize) else {
                     print("Capture failed: could not render output bitmap")
                     return
                 }
                 let exactImage = NSImage(size: outputPixelSize)
-                exactImage.addRepresentation(rep)
+                exactImage.addRepresentation(rgbaRep)
 
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.writeObjects([exactImage])
+
+                // PNG 32bpp keeps alpha; 24bpp/8bpp both drop it (macOS
+                // has no simple indexed-palette API to match Windows'
+                // true 8bpp/256-color PNGs, so both fall back to plain
+                // RGB). JPEG has no alpha channel either way. Alpha is
+                // stripped as a separate raw-buffer copy afterward,
+                // never by rendering directly into a no-alpha context.
+                let isJPEG = settings.fileFormat == "jpg"
+                let wantsAlpha = !isJPEG && settings.pngDepth == "32bpp"
+                let outputRep = wantsAlpha ? rgbaRep : (Self.stripAlpha(from: rgbaRep) ?? rgbaRep)
 
                 let fileData: Data?
                 let ext: String
                 if isJPEG {
                     let quality = Float(settings.jpegQuality) / 100
-                    fileData = rep.representation(using: .jpeg, properties: [.compressionFactor: NSNumber(value: quality)])
+                    fileData = outputRep.representation(using: .jpeg, properties: [.compressionFactor: NSNumber(value: quality)])
                     ext = "jpg"
                 } else {
-                    fileData = rep.representation(using: .png, properties: [:])
+                    fileData = outputRep.representation(using: .png, properties: [:])
                     ext = "png"
                 }
 
@@ -126,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                     let url = dir.appendingPathComponent(name)
                     try data.write(to: url)
-                    print("Captured (\(rep.pixelsWide)x\(rep.pixelsHigh)px, \(ext)) + copied to clipboard -> \(url.path)")
+                    print("Captured (\(outputRep.pixelsWide)x\(outputRep.pixelsHigh)px, \(ext)) + copied to clipboard -> \(url.path)")
                 } else {
                     print("Captured + copied to clipboard (file save off)")
                 }
@@ -140,11 +147,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // Renders `image` into a bitmap whose pixel dimensions exactly equal
-    // `pixelSize` (rep.size set to match, so it's 1 point == 1 pixel),
-    // downsampling/converting from whatever native resolution/format
-    // `image` actually carries.
-    private static func pixelExactBitmap(from image: NSImage, pixelSize: CGSize, hasAlpha: Bool) -> NSBitmapImageRep? {
+    // Renders `image` into an RGBA bitmap whose pixel dimensions exactly
+    // equal `pixelSize` (rep.size set to match, so it's 1 point == 1
+    // pixel), downsampling from whatever native resolution `image`
+    // actually carries. Always alpha — see the no-alpha-context note
+    // where this is called.
+    private static func pixelExactBitmap(from image: NSImage, pixelSize: CGSize) -> NSBitmapImageRep? {
         let width = max(1, Int(pixelSize.width.rounded()))
         let height = max(1, Int(pixelSize.height.rounded()))
         guard let rep = NSBitmapImageRep(
@@ -152,8 +160,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pixelsWide: width,
             pixelsHigh: height,
             bitsPerSample: 8,
-            samplesPerPixel: hasAlpha ? 4 : 3,
-            hasAlpha: hasAlpha,
+            samplesPerPixel: 4,
+            hasAlpha: true,
             isPlanar: false,
             colorSpaceName: .deviceRGB,
             bytesPerRow: 0,
@@ -167,6 +175,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         image.draw(in: CGRect(x: 0, y: 0, width: width, height: height), from: .zero, operation: .copy, fraction: 1.0)
         NSGraphicsContext.restoreGraphicsState()
         return rep
+    }
+
+    // Converts an RGBA rep to plain RGB by copying the raw pixel bytes
+    // and dropping the alpha byte per pixel — a memory copy, not a
+    // drawing operation, so it doesn't hit the no-alpha-context
+    // limitation that made rendering directly into an alpha-less
+    // bitmap fail.
+    private static func stripAlpha(from rgba: NSBitmapImageRep) -> NSBitmapImageRep? {
+        let width = rgba.pixelsWide
+        let height = rgba.pixelsHigh
+        guard let src = rgba.bitmapData else { return nil }
+        let srcStride = rgba.bytesPerRow
+
+        guard let rgbRep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 3,
+            hasAlpha: false,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ), let dst = rgbRep.bitmapData else { return nil }
+        rgbRep.size = rgba.size
+        let dstStride = rgbRep.bytesPerRow
+
+        for y in 0..<height {
+            let srcRow = src + y * srcStride
+            let dstRow = dst + y * dstStride
+            for x in 0..<width {
+                dstRow[x * 3 + 0] = srcRow[x * 4 + 0]
+                dstRow[x * 3 + 1] = srcRow[x * 4 + 1]
+                dstRow[x * 3 + 2] = srcRow[x * 4 + 2]
+            }
+        }
+        return rgbRep
     }
 
     // Bakes the drawn annotations into the captured pixels, shifting them
