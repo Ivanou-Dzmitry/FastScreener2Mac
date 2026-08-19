@@ -168,11 +168,10 @@ final class SettingsWindow: NSWindow {
         stack.addArrangedSubview(Self.stubNote())
 
         stack.addArrangedSubview(Self.sectionLabel("File"))
-        let pathLabel = NSTextField(labelWithString: settings.saveFolderURL.path)
-        pathLabel.lineBreakMode = .byTruncatingMiddle
-        pathLabel.translatesAutoresizingMaskIntoConstraints = false
-        pathLabel.widthAnchor.constraint(equalToConstant: 220).isActive = true
-        let chooseButton = ActionButton(title: "Choose…") { [weak self] in
+        // Full-width vertical layout, not a title+control row: the path
+        // text is too wide to share a row with a 170pt title column
+        // without overflowing the window and breaking Auto Layout.
+        let chooseButton = ActionButton(title: "Choose Save Folder…") { [weak self] in
             let panel = NSOpenPanel()
             panel.canChooseDirectories = true
             panel.canChooseFiles = false
@@ -182,10 +181,12 @@ final class SettingsWindow: NSWindow {
             settings.saveFolderPath = url.path
             self?.rebuildContent()
         }
-        let folderRow = NSStackView(views: [pathLabel, chooseButton])
-        folderRow.orientation = .horizontal
-        folderRow.spacing = 8
-        stack.addArrangedSubview(Self.row(title: "Save folder", control: folderRow))
+        stack.addArrangedSubview(chooseButton)
+        let pathLabel = NSTextField(wrappingLabelWithString: settings.saveFolderURL.path)
+        pathLabel.font = .systemFont(ofSize: 11)
+        pathLabel.textColor = .secondaryLabelColor
+        pathLabel.preferredMaxLayoutWidth = 320
+        stack.addArrangedSubview(pathLabel)
 
         stack.addArrangedSubview(Self.row(title: "Format", control: ChoicePicker(options: ["png", "jpg"], selected: settings.fileFormat) { [weak self] value in
             settings.fileFormat = value
