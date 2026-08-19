@@ -168,14 +168,20 @@ final class CaptureFrameView: NSView {
         settingsButton.onClick = { print("Settings: not built yet") }
         addSubview(settingsButton)
 
+        // Anchored to the bottom of the left bar (just above the status
+        // bar), not the top: .maxYMargin in autoresizingMask leaves the
+        // margin *above* the button flexible and the margin *below* it
+        // fixed, which pins it to the bottom as the window resizes.
         let toolIcons: [(AnnotationTool, String)] = [
             (.arrow, "arrow_icon"),
             (.frame, "frame_icon"),
             (.number, "number_icon"),
         ]
+        let groupBottom = Self.bottomBarHeight + 8
         for (index, pair) in toolIcons.enumerated() {
             let (tool, iconName) = pair
-            let y = topY - 28 - CGFloat(index) * 30
+            let reverseIndex = toolIcons.count - 1 - index
+            let y = groupBottom + CGFloat(reverseIndex) * 30
             let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 4, y: y, width: Self.leftBarWidth - 8, height: 24))
             button.autoresizingMask = [.maxYMargin]
             button.onClick = { [weak self] in self?.currentTool = tool }
