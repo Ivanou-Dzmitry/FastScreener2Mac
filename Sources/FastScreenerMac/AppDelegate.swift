@@ -78,6 +78,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     try png.write(to: url)
                     print("Captured + copied to clipboard -> \(url.path)")
                 }
+
+                if AppSettings.shared.clearElementsAfterCapture {
+                    frameView.clearAnnotations()
+                }
             } catch {
                 print("Capture failed: \(error)")
             }
@@ -107,7 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 case .frame:
                     annotation.draw(color: settings.frameColor, lineWidth: settings.frameStrokeWidth)
                 case .number:
-                    annotation.draw()
+                    annotation.draw(color: settings.numberColor, fontSize: settings.numberFontSize, fontFamily: settings.numberFontFamily)
                 }
             }
             context.restoreGraphicsState()

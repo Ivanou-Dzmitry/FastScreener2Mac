@@ -40,9 +40,46 @@ final class NumberField: NSTextField, NSTextFieldDelegate {
     }
 }
 
+final class StringField: NSTextField, NSTextFieldDelegate {
+    private let onChange: (String) -> Void
+
+    init(value: String, placeholder: String, onChange: @escaping (String) -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        widthAnchor.constraint(equalToConstant: 140).isActive = true
+        stringValue = value
+        placeholderString = placeholder
+        delegate = self
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func controlTextDidChange(_ obligatory: Notification) { onChange(stringValue) }
+}
+
+final class CheckboxControl: NSButton {
+    private let onChange: (Bool) -> Void
+
+    init(title: String, isOn: Bool, onChange: @escaping (Bool) -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        setButtonType(.switch)
+        self.title = title
+        state = isOn ? .on : .off
+        target = self
+        action = #selector(changed)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    @objc private func changed() { onChange(state == .on) }
+}
+
 final class SettingsWindow: NSWindow {
     convenience init() {
-        self.init(contentRect: CGRect(x: 0, y: 0, width: 340, height: 320), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        self.init(contentRect: CGRect(x: 0, y: 0, width: 340, height: 520), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         title = "Settings"
         isReleasedWhenClosed = false
         level = .floating
@@ -67,11 +104,20 @@ final class SettingsWindow: NSWindow {
         stack.addArrangedSubview(Self.row(title: "Fixed width (px, min 32)", control: NumberField(value: settings.frameFixedWidth) { settings.frameFixedWidth = max(32, $0) }))
         stack.addArrangedSubview(Self.row(title: "Fixed height (px, min 32)", control: NumberField(value: settings.frameFixedHeight) { settings.frameFixedHeight = max(32, $0) }))
 
-        let hint = NSTextField(wrappingLabelWithString: "Fixed width/height is the box a plain middle-click places with the Frame tool; dragging still draws a free-size box.")
-        hint.font = .systemFont(ofSize: 11)
-        hint.textColor = .secondaryLabelColor
-        hint.preferredMaxLayoutWidth = 280
-        stack.addArrangedSubview(hint)
+        let frameHint = NSTextField(wrappingLabelWithString: "Fixed width/height is the box a plain middle-click places with the Frame tool; dragging still draws a free-size box.")
+        frameHint.font = .systemFont(ofSize: 11)
+        frameHint.textColor = .secondaryLabelColor
+        frameHint.preferredMaxLayoutWidth = 280
+        stack.addArrangedSubview(frameHint)
+
+        stack.addArrangedSubview(Self.sectionLabel("Number"))
+        stack.addArrangedSubview(Self.row(title: "Color", control: ColorWell(color: settings.numberColor) { settings.numberColor = $0 }))
+        stack.addArrangedSubview(Self.row(title: "Font size (px)", control: NumberField(value: settings.numberFontSize) { settings.numberFontSize = max(6, $0) }))
+        stack.addArrangedSubview(Self.row(title: "Font family (blank = default)", control: StringField(value: settings.numberFontFamily, placeholder: "System") { settings.numberFontFamily = $0 }))
+
+        stack.addArrangedSubview(Self.sectionLabel("Panel"))
+        stack.addArrangedSubview(Self.row(title: "Panel color (chrome)", control: ColorWell(color: settings.chromeColor) { settings.chromeColor = $0 }))
+        stack.addArrangedSubview(CheckboxControl(title: "Clear elements after screenshot", isOn: settings.clearElementsAfterCapture) { settings.clearElementsAfterCapture = $0 })
 
         let container = NSView()
         container.addSubview(stack)

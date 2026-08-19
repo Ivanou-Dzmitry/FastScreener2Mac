@@ -18,6 +18,13 @@ final class AppSettings {
     var frameFixedWidth: CGFloat { didSet { save() } } // px, min 32 — size of the box a plain middle-click places
     var frameFixedHeight: CGFloat { didSet { save() } } // px, min 32
 
+    var numberColor: NSColor { didSet { save() } }
+    var numberFontSize: CGFloat { didSet { save() } }
+    var numberFontFamily: String { didSet { save() } } // empty = system default
+
+    var chromeColor: NSColor { didSet { save() } } // top/left/bottom bar background ("Panel Color" in the original)
+    var clearElementsAfterCapture: Bool { didSet { save() } }
+
     private init() {
         arrowColor = Self.loadColor(key: "arrowColor") ?? .cyan
         arrowLength = Self.loadNumber(key: "arrowLength") ?? 50
@@ -27,6 +34,13 @@ final class AppSettings {
         frameStrokeWidth = Self.loadNumber(key: "frameStrokeWidth") ?? 1
         frameFixedWidth = Self.loadNumber(key: "frameFixedWidth") ?? 80
         frameFixedHeight = Self.loadNumber(key: "frameFixedHeight") ?? 80
+
+        numberColor = Self.loadColor(key: "numberColor") ?? .yellow
+        numberFontSize = Self.loadNumber(key: "numberFontSize") ?? 26
+        numberFontFamily = defaults.string(forKey: "numberFontFamily") ?? ""
+
+        chromeColor = Self.loadColor(key: "chromeColor") ?? NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 0.92) // SlateGray
+        clearElementsAfterCapture = defaults.object(forKey: "clearElementsAfterCapture") as? Bool ?? true
     }
 
     private func save() {
@@ -35,8 +49,13 @@ final class AppSettings {
         defaults.set(Double(frameStrokeWidth), forKey: "frameStrokeWidth")
         defaults.set(Double(frameFixedWidth), forKey: "frameFixedWidth")
         defaults.set(Double(frameFixedHeight), forKey: "frameFixedHeight")
+        defaults.set(Double(numberFontSize), forKey: "numberFontSize")
+        defaults.set(numberFontFamily, forKey: "numberFontFamily")
+        defaults.set(clearElementsAfterCapture, forKey: "clearElementsAfterCapture")
         Self.saveColor(arrowColor, key: "arrowColor")
         Self.saveColor(frameColor, key: "frameColor")
+        Self.saveColor(numberColor, key: "numberColor")
+        Self.saveColor(chromeColor, key: "chromeColor")
     }
 
     private static func loadNumber(key: String) -> CGFloat? {

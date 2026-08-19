@@ -18,7 +18,6 @@ final class CaptureFrameView: NSView {
     private let snapMargin: CGFloat = 8
     private let borderWidth: CGFloat = 1.5
     private let borderColor = NSColor.black
-    private let chromeColor = NSColor(calibratedWhite: 0.1, alpha: 0.92)
     private let settings = AppSettings.shared
 
     private enum DragMode {
@@ -79,7 +78,7 @@ final class CaptureFrameView: NSView {
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        chromeColor.setFill()
+        settings.chromeColor.setFill()
         NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
         NSBezierPath(rect: CGRect(x: Self.leftBarWidth, y: 0, width: bounds.width - Self.leftBarWidth, height: Self.bottomBarHeight)).fill()
@@ -105,7 +104,7 @@ final class CaptureFrameView: NSView {
         case .frame:
             annotation.draw(color: settings.frameColor, lineWidth: settings.frameStrokeWidth)
         case .number:
-            annotation.draw()
+            annotation.draw(color: settings.numberColor, fontSize: settings.numberFontSize, fontFamily: settings.numberFontFamily)
         }
     }
 
@@ -412,6 +411,10 @@ final class CaptureFrameView: NSView {
     private func clearAll() {
         annotations.removeAll()
         nextNumber = 1
+    }
+
+    func clearAnnotations() {
+        clearAll()
     }
 
     // MARK: - Size presets / fullscreen
