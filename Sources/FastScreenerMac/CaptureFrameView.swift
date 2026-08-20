@@ -94,8 +94,14 @@ final class CaptureFrameView: NSView {
         // that transparent area when Show Info is on.
         settings.chromeColor.setFill()
         NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
-        NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - Self.rightBarWidth, y: 0, width: Self.rightBarWidth, height: bounds.height)).fill()
+
+        // Left bar is fixed grey top-to-bottom, same as the icon
+        // clusters — it holds the tool buttons throughout, so it reads
+        // as one consistent control zone rather than switching to the
+        // dynamic Panel Color below the icons.
+        fixedControlBackground.setFill()
+        NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
 
         // Both icon clusters (hamburger/capture/resolution-cycle on the
         // left, settings/minimize/close on the right) always sit on
