@@ -30,6 +30,7 @@ final class CaptureFrameView: NSView {
     private let iconClusterInset: CGFloat = CaptureFrameView.leftBarWidth
     private let iconClusterWidth: CGFloat = 78
     private let toolSlotCount: CGFloat = 5 // Arrow/Frame/Number + Save-to-Disk + Guidelines
+    private let bottomCornerWidth: CGFloat = 64 // wider than leftBarWidth/rightBarWidth, per reference
 
     // Bounding box of the left-bar tool-button stack (see setupChrome's
     // groupBottom/reverseIndex layout), with a little padding — not the
@@ -106,6 +107,10 @@ final class CaptureFrameView: NSView {
         NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - Self.rightBarWidth, y: 0, width: Self.rightBarWidth, height: bounds.height)).fill()
         NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
+        // The bottom-row corners are wider than the bars themselves —
+        // extend just that row's fill outward on each side.
+        NSBezierPath(rect: CGRect(x: 0, y: 0, width: bottomCornerWidth, height: Self.bottomBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: bounds.width - bottomCornerWidth, y: 0, width: bottomCornerWidth, height: Self.bottomBarHeight)).fill()
 
         // Only the tool-button cluster gets its own fixed-grey zone
         // (sized to the buttons, not the whole bar) — painted over the
@@ -220,8 +225,8 @@ final class CaptureFrameView: NSView {
         // bar (between the left toolbar and the right bar), not
         // left-aligned right after the left bar.
         let size = text.size(withAttributes: attrs)
-        let zoneMinX = Self.leftBarWidth
-        let zoneMaxX = bounds.width - Self.rightBarWidth
+        let zoneMinX = bottomCornerWidth
+        let zoneMaxX = bounds.width - bottomCornerWidth
         let x = zoneMinX + (zoneMaxX - zoneMinX - size.width) / 2
         text.draw(at: CGPoint(x: x, y: 4), withAttributes: attrs)
     }
