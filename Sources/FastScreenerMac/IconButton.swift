@@ -22,11 +22,13 @@ final class IconButton: NSView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    // Matches the original: dark grey when off, light grey when on —
-    // not a color accent, just a lighter/darker chip.
+    // Dark grey when off, near-black when on — the icons are white, so a
+    // light-grey active chip (the original's look) washed out the
+    // contrast here; near-black keeps the white icon clearly visible in
+    // both states instead.
     override func draw(_ dirtyRect: NSRect) {
         if isActive {
-            NSColor(calibratedWhite: 0.75, alpha: 1).setFill()
+            NSColor(calibratedWhite: 0.12, alpha: 1).setFill()
             NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
         } else if showsBackgroundWhenInactive {
             NSColor(calibratedWhite: 0.35, alpha: 1).setFill()
