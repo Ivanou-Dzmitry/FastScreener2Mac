@@ -29,6 +29,16 @@ final class CaptureFrameView: NSView {
     private let fixedControlBackground = NSColor(calibratedWhite: 0.4, alpha: 1)
     private let iconClusterInset: CGFloat = CaptureFrameView.leftBarWidth
     private let iconClusterWidth: CGFloat = 78
+    private let toolSlotCount: CGFloat = 5 // Arrow/Frame/Number + Save-to-Disk + Guidelines
+
+    // Bounding box of the left-bar tool-button stack (see setupChrome's
+    // groupBottom/reverseIndex layout), with a little padding — not the
+    // whole left bar.
+    private var toolClusterZone: CGRect {
+        let groupBottom = Self.bottomBarHeight + 8
+        let groupTop = groupBottom + toolSlotCount * 30
+        return CGRect(x: 0, y: groupBottom - 4, width: Self.leftBarWidth, height: groupTop - groupBottom + 8)
+    }
 
     private enum DragMode {
         case none
@@ -96,19 +106,17 @@ final class CaptureFrameView: NSView {
         NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - Self.rightBarWidth, y: 0, width: Self.rightBarWidth, height: bounds.height)).fill()
 
-        // Left bar is fixed grey top-to-bottom, same as the icon
-        // clusters — it holds the tool buttons throughout, so it reads
-        // as one consistent control zone rather than switching to the
-        // dynamic Panel Color below the icons.
+        // Left bar itself is dynamic Panel Color, same as the top bar —
+        // only the tool-button cluster gets its own fixed-grey zone
+        // (sized to the buttons, not the whole bar), matching the top
+        // bar's hamburger/settings clusters.
         fixedControlBackground.setFill()
-        NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
+        NSBezierPath(rect: toolClusterZone).fill()
 
-        // Both icon clusters (hamburger/capture/resolution-cycle on the
-        // left, settings/minimize/close on the right) always sit on
-        // fixed grey, unaffected by Panel Color — painted over the
-        // chrome fill in just those two top-bar slices.
-        fixedControlBackground.setFill()
-        NSBezierPath(rect: CGRect(x: iconClusterInset, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
+        // Only the settings/minimize/close cluster stays fixed grey,
+        // unaffected by Panel Color — hamburger/capture/resolution-cycle
+        // (top-left) turned out to be meant as dynamic Panel Color too,
+        // per the user's color-coded reference.
         NSBezierPath(rect: CGRect(x: bounds.width - iconClusterInset - iconClusterWidth, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
 
         drawGuides()
@@ -284,7 +292,7 @@ final class CaptureFrameView: NSView {
             (.frame, "frame_icon"),
             (.number, "number_icon"),
         ]
-        let totalSlots = toolIcons.count + 2 // +2 for the Save-to-Disk and Guidelines toggles below
+        let totalSlots = Int(toolSlotCount)
         let groupBottom = Self.bottomBarHeight + 8
         for (index, pair) in toolIcons.enumerated() {
             let (tool, iconName) = pair
