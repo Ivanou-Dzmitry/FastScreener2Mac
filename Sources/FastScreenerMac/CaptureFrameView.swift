@@ -647,13 +647,32 @@ final class CaptureFrameView: NSView {
         NSScreen.screens.reduce(CGRect.null) { $0.union($1.frame) }
     }
 
+    // Snaps the CAPTURE rect's edges to the screen edges, not the
+    // window's outer edges — the window is bigger than the capture area
+    // by the chrome insets (left/right bars, top/bottom bars), so
+    // snapping the raw window frame left the actual screenshot zone
+    // short of the edge by that same margin.
     private func snappedOrigin(_ origin: CGPoint, size: CGSize) -> CGPoint {
         let screenFrame = virtualScreenFrame()
         var o = origin
-        if abs(o.x - screenFrame.minX) < snapMargin { o.x = screenFrame.minX }
-        if abs((o.x + size.width) - screenFrame.maxX) < snapMargin { o.x = screenFrame.maxX - size.width }
-        if abs(o.y - screenFrame.minY) < snapMargin { o.y = screenFrame.minY }
-        if abs((o.y + size.height) - screenFrame.maxY) < snapMargin { o.y = screenFrame.maxY - size.height }
+
+        let interiorLeft = o.x + Self.leftBarWidth
+        let interiorRight = o.x + size.width - Self.rightBarWidth
+        let interiorBottom = o.y + Self.bottomBarHeight
+        let interiorTop = o.y + size.height - Self.topBarHeight
+
+        if abs(interiorLeft - screenFrame.minX) < snapMargin {
+            o.x = screenFrame.minX - Self.leftBarWidth
+        }
+        if abs(interiorRight - screenFrame.maxX) < snapMargin {
+            o.x = screenFrame.maxX - size.width + Self.rightBarWidth
+        }
+        if abs(interiorBottom - screenFrame.minY) < snapMargin {
+            o.y = screenFrame.minY - Self.bottomBarHeight
+        }
+        if abs(interiorTop - screenFrame.maxY) < snapMargin {
+            o.y = screenFrame.maxY - size.height + Self.topBarHeight
+        }
         return o
     }
 }
