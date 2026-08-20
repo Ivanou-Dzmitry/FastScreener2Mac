@@ -33,4 +33,13 @@ final class CaptureWindow: NSWindow {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    // AppKit auto-constrains a window's frame to stay clear of the menu
+    // bar by default, even for programmatic setFrameOrigin calls — which
+    // silently capped how far up the capture zone could snap. Returning
+    // the proposed frame unchanged lets it reach the true top of the
+    // screen.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 }

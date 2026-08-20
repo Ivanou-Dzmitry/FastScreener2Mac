@@ -10,10 +10,10 @@ import Carbon.HIToolbox
 // output, so all this chrome never leaks into a screenshot regardless
 // of where it's drawn.
 final class CaptureFrameView: NSView {
-    static let topBarHeight: CGFloat = 28
+    static let topBarHeight: CGFloat = 32
     static let leftBarWidth: CGFloat = 32
     static let rightBarWidth: CGFloat = 32
-    static let bottomBarHeight: CGFloat = 20
+    static let bottomBarHeight: CGFloat = 32
     static let filenameMaxLength = 42
 
     private let snapMargin: CGFloat = 8
