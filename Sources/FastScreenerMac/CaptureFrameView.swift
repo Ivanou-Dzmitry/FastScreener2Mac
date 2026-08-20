@@ -105,18 +105,18 @@ final class CaptureFrameView: NSView {
         settings.chromeColor.setFill()
         NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - Self.rightBarWidth, y: 0, width: Self.rightBarWidth, height: bounds.height)).fill()
+        NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
 
-        // Left bar itself is dynamic Panel Color, same as the top bar —
-        // only the tool-button cluster gets its own fixed-grey zone
-        // (sized to the buttons, not the whole bar), matching the top
-        // bar's hamburger/settings clusters.
+        // Only the tool-button cluster gets its own fixed-grey zone
+        // (sized to the buttons, not the whole bar) — painted over the
+        // dynamic fill above, matching the top bar's settings cluster.
         fixedControlBackground.setFill()
         NSBezierPath(rect: toolClusterZone).fill()
 
-        // Only the settings/minimize/close cluster stays fixed grey,
-        // unaffected by Panel Color — hamburger/capture/resolution-cycle
-        // (top-left) turned out to be meant as dynamic Panel Color too,
-        // per the user's color-coded reference.
+        // Both icon clusters (hamburger/capture/resolution-cycle on the
+        // left, settings/minimize/close on the right) stay fixed grey,
+        // unaffected by Panel Color.
+        NSBezierPath(rect: CGRect(x: iconClusterInset, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - iconClusterInset - iconClusterWidth, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
 
         drawGuides()
