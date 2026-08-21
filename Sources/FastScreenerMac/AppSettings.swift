@@ -106,7 +106,7 @@ final class AppSettings {
         numberFontSize = Self.loadNumber(key: "numberFontSize") ?? 26
         numberFontFamily = defaults.string(forKey: "numberFontFamily") ?? ""
 
-        chromeColor = Self.loadColor(key: "chromeColor") ?? NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 0.92) // SlateGray
+        chromeColor = Self.loadColor(key: "chromeColor") ?? NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 1) // SlateGray, opaque like the original
         clearElementsAfterCapture = defaults.object(forKey: "clearElementsAfterCapture") as? Bool ?? true
         saveToFile = defaults.object(forKey: "saveToFile") as? Bool ?? true
         showInfoLabel = defaults.object(forKey: "showInfoLabel") as? Bool ?? true
@@ -296,7 +296,7 @@ final class AppSettings {
         numberColor = Self.defaultOrange
         numberFontSize = 26
         numberFontFamily = ""
-        chromeColor = NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 0.92)
+        chromeColor = NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 1)
         clearElementsAfterCapture = true
         saveToFile = true
         showInfoLabel = true

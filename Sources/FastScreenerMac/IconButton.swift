@@ -8,15 +8,17 @@ final class IconButton: NSView {
     var isActive: Bool = false { didSet { needsDisplay = true } }
 
     private let icon: NSImage
+    private let iconPadding: CGFloat
     // Tool-select buttons (left toolbar) always sit on their own grey
     // chip, not just when active — matches the reference. Chrome buttons
     // (hamburger, close, etc.) stay transparent since they already sit
     // on a shared fixed-grey zone painted by the superview.
     private let showsBackgroundWhenInactive: Bool
 
-    init(icon: NSImage, frame: CGRect, showsBackgroundWhenInactive: Bool = false) {
+    init(icon: NSImage, frame: CGRect, showsBackgroundWhenInactive: Bool = false, iconPadding: CGFloat = 5) {
         self.icon = icon
         self.showsBackgroundWhenInactive = showsBackgroundWhenInactive
+        self.iconPadding = iconPadding
         super.init(frame: frame)
     }
 
@@ -25,17 +27,17 @@ final class IconButton: NSView {
     // Dark grey when off, near-black when on — the icons are white, so a
     // light-grey active chip (the original's look) washed out the
     // contrast here; near-black keeps the white icon clearly visible in
-    // both states instead.
+    // both states instead. Square corners, full bar width — matches the
+    // reference, not a rounded inset "pill".
     override func draw(_ dirtyRect: NSRect) {
         if isActive {
             NSColor(calibratedWhite: 0.12, alpha: 1).setFill()
-            NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
+            NSBezierPath(rect: bounds).fill()
         } else if showsBackgroundWhenInactive {
             NSColor(calibratedWhite: 0.35, alpha: 1).setFill()
-            NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
+            NSBezierPath(rect: bounds).fill()
         }
-        let padding: CGFloat = 5
-        icon.draw(in: bounds.insetBy(dx: padding, dy: padding), from: .zero, operation: .sourceOver, fraction: 1.0)
+        icon.draw(in: bounds.insetBy(dx: iconPadding, dy: iconPadding), from: .zero, operation: .sourceOver, fraction: 1.0)
     }
 
     override func mouseDown(with event: NSEvent) {
