@@ -153,6 +153,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     print("Captured + copied to clipboard (file save off)")
                 }
 
+                // Matches the original: recorded on every successful
+                // capture where a name was typed, regardless of whether
+                // Save to File is on.
+                if !filenameOverride.trimmingCharacters(in: .whitespaces).isEmpty {
+                    settings.recordFilenameUsed(filenameOverride)
+                    frameView.refreshFilenameHistory()
+                }
+
                 if settings.clearElementsAfterCapture {
                     frameView.clearAnnotations()
                 }

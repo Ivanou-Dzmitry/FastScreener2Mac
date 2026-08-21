@@ -61,6 +61,20 @@ final class AppSettings {
         return Self.defaultSaveFolder
     }
 
+    // Last 10 filenames typed into the toolbar's name field, most
+    // recent first — feeds the field's autocomplete/dropdown history.
+    // Matches the original's "last_names" (SaveFileNameToHistory).
+    var filenameHistory: [String] { didSet { save() } }
+
+    func recordFilenameUsed(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        var history = filenameHistory
+        history.removeAll { $0 == trimmed }
+        history.insert(trimmed, at: 0)
+        filenameHistory = Array(history.prefix(10))
+    }
+
     // "png" or "jpg". "32bpp"/"24bpp"/"8bpp" for pngDepth (only meaningful
     // when fileFormat == "png"). jpegQuality 1...100 (only meaningful when
     // fileFormat == "jpg").
@@ -114,6 +128,7 @@ final class AppSettings {
 
         presetSizes = Self.loadPresetSizes() ?? Self.defaultProfileSizes
         saveFolderPath = defaults.string(forKey: "saveFolderPath")
+        filenameHistory = defaults.stringArray(forKey: "filenameHistory") ?? []
         fileFormat = defaults.string(forKey: "fileFormat") ?? "png"
         pngDepth = defaults.string(forKey: "pngDepth") ?? "32bpp"
         jpegQuality = defaults.object(forKey: "jpegQuality") as? Int ?? 75
@@ -148,6 +163,7 @@ final class AppSettings {
         defaults.set(presetSizes.map { Double($0.width) }, forKey: "presetWidths")
         defaults.set(presetSizes.map { Double($0.height) }, forKey: "presetHeights")
         if let saveFolderPath { defaults.set(saveFolderPath, forKey: "saveFolderPath") } else { defaults.removeObject(forKey: "saveFolderPath") }
+        defaults.set(filenameHistory, forKey: "filenameHistory")
         defaults.set(fileFormat, forKey: "fileFormat")
         defaults.set(pngDepth, forKey: "pngDepth")
         defaults.set(jpegQuality, forKey: "jpegQuality")
@@ -303,6 +319,7 @@ final class AppSettings {
         dpiScale = true
         presetSizes = Self.defaultProfileSizes
         saveFolderPath = nil
+        filenameHistory = []
         fileFormat = "png"
         pngDepth = "32bpp"
         jpegQuality = 75

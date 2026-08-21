@@ -71,8 +71,16 @@ final class CaptureFrameView: NSView {
     var onSettingsRequested: (() -> Void)?
     var onOpenFolderRequested: (() -> Void)?
     var onHelpRequested: (() -> Void)?
-    private var filenameField: NSTextField!
+    private var filenameField: NSComboBox!
     var filenameOverride: String { filenameField.stringValue }
+
+    // Repopulates the dropdown after AppDelegate records a newly-used
+    // name to settings.filenameHistory, so it's available immediately
+    // without a restart.
+    func refreshFilenameHistory() {
+        filenameField.removeAllItems()
+        filenameField.addItems(withObjectValues: settings.filenameHistory)
+    }
 
     private var hamburgerButton: IconButton!
     private var captureButton: IconButton!
@@ -308,11 +316,16 @@ final class CaptureFrameView: NSView {
         // here would permanently bake in whatever that happened to be.
         let filenameX = leftZoneX + iconClusterWidth + 4
         let rightZoneX = bounds.width - iconClusterInset - iconClusterWidth
-        filenameField = NSTextField(frame: CGRect(x: filenameX, y: topY + 4, width: 260, height: 20))
+        // NSComboBox instead of a plain NSTextField: gives a native
+        // dropdown of past entries plus inline autocomplete-as-you-type,
+        // matching the original's txtbName.AutoCompleteMode = SuggestAppend
+        // over a CustomSource built from filenameHistory.
+        filenameField = NSComboBox(frame: CGRect(x: filenameX, y: topY + 4, width: 260, height: 20))
         filenameField.placeholderString = "File name (\(Self.filenameMaxLength) symbols, optional)"
         filenameField.font = .systemFont(ofSize: 11)
         filenameField.autoresizingMask = [.minYMargin]
-        filenameField.usesSingleLineMode = true
+        filenameField.completes = true
+        filenameField.addItems(withObjectValues: settings.filenameHistory)
         filenameField.delegate = self
         addSubview(filenameField)
 
@@ -815,7 +828,7 @@ final class CaptureFrameView: NSView {
     }
 }
 
-extension CaptureFrameView: NSTextFieldDelegate {
+extension CaptureFrameView: NSComboBoxDelegate {
     func controlTextDidChange(_ obligatory: Notification) {
         if filenameField.stringValue.count > Self.filenameMaxLength {
             filenameField.stringValue = String(filenameField.stringValue.prefix(Self.filenameMaxLength))
