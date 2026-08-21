@@ -57,7 +57,7 @@ final class HelpWindow: NSWindow {
     }
 
     private static func loadHelpText() -> String {
-        guard let url = Bundle.module.url(forResource: "fs2_help", withExtension: "txt", subdirectory: "Resources"),
+        guard let url = AppResourceBundle.shared.url(forResource: "fs2_help", withExtension: "txt", subdirectory: "Resources"),
               let text = try? String(contentsOf: url, encoding: .utf8) else {
             return "Help text resource 'fs2_help.txt' was not found."
         }

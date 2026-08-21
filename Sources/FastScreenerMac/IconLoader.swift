@@ -6,7 +6,7 @@ import AppKit
 // so a sourceAtop fill over the drawn icon retints them cleanly).
 enum IconLoader {
     static func load(_ name: String, tint: NSColor = .white) -> NSImage {
-        guard let url = Bundle.module.url(forResource: name, withExtension: "svg", subdirectory: "Resources"),
+        guard let url = AppResourceBundle.shared.url(forResource: name, withExtension: "svg", subdirectory: "Resources"),
               let raw = NSImage(contentsOf: url) else {
             return NSImage(size: CGSize(width: 16, height: 16))
         }
