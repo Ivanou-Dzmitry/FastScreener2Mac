@@ -69,6 +69,7 @@ final class CaptureFrameView: NSView {
     var onCaptureRequested: (() -> Void)?
     var onSettingsRequested: (() -> Void)?
     var onOpenFolderRequested: (() -> Void)?
+    var onHelpRequested: (() -> Void)?
     private var filenameField: NSTextField!
     var filenameOverride: String { filenameField.stringValue }
 
@@ -393,9 +394,8 @@ final class CaptureFrameView: NSView {
     // MARK: - Menu
 
     // Mirrors the original's hamburger menu structure/order exactly.
-    // Everything wired to a working feature is live; everything else
-    // (Text, Watermark, Guidelines, Help) is a disabled stub, since
-    // those tools aren't built yet.
+    // Everything wired to a working feature is live; Text and Watermark
+    // remain disabled stubs, since those tools aren't built yet.
     private func showMenu() {
         let menu = NSMenu()
 
@@ -448,7 +448,7 @@ final class CaptureFrameView: NSView {
         showInfoItem.state = settings.showInfoLabel ? .on : .off
         menu.addItem(showInfoItem)
         menu.addItem(ClosureMenuItem(title: "Settings") { [weak self] in self?.onSettingsRequested?() })
-        menu.addItem(Self.stub("Help  (F1)"))
+        menu.addItem(ClosureMenuItem(title: "Help  (F1)") { [weak self] in self?.onHelpRequested?() })
         menu.addItem(ClosureMenuItem(title: "Exit") { NSApplication.shared.terminate(nil) })
 
         menu.popUp(positioning: nil, at: CGPoint(x: hamburgerButton.frame.minX, y: hamburgerButton.frame.minY), in: self)
@@ -587,6 +587,7 @@ final class CaptureFrameView: NSView {
 
         if mods == [.command], chars == "z" { undo(); return }
         if mods == [.command, .shift], chars == "z" { clearAll(); return }
+        if mods.isEmpty, Int(event.keyCode) == kVK_F1 { onHelpRequested?(); return }
 
         if mods == [.option] {
             switch Int(event.keyCode) {

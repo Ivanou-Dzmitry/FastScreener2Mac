@@ -5,6 +5,7 @@ import Carbon.HIToolbox
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: CaptureWindow!
     var settingsWindow: SettingsWindow!
+    var helpWindow: HelpWindow!
 
     static var capturesDirectory: URL { AppSettings.shared.saveFolderURL }
 
@@ -25,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let frameView = window.contentView as? CaptureFrameView {
             frameView.onCaptureRequested = { [weak self] in self?.captureAndSave() }
             frameView.onSettingsRequested = { [weak self] in self?.showSettings() }
+            frameView.onHelpRequested = { [weak self] in self?.showHelp() }
             frameView.onOpenFolderRequested = {
                 let dir = AppDelegate.capturesDirectory
                 try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -54,6 +56,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsWindow.center()
         settingsWindow.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func showHelp() {
+        if helpWindow == nil {
+            helpWindow = HelpWindow()
+        }
+        helpWindow.center()
+        helpWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 

@@ -1,0 +1,123 @@
+FastScreenerMac
+Author: Dzmitry Ivanou
+Contact: id.cgtalk@gmail.com
+---------------------------------
+
+ANNOTATION TOOLS
+----------------
+Add graphic elements using the Middle Mouse Button (MMB). Pick the active
+tool from the left toolbar, the hamburger menu, or keys 1 / 2 / 3 / 0.
+
+* Arrow - Click MMB to anchor the arrowhead, drag to set direction.
+  Snaps to the 4 diagonals.
+
+* Frame - Click MMB for a fixed-size box (set in Settings > Frame).
+  Drag past a small threshold for a free-size box instead.
+
+* Number - Places sequential numbers with a drop shadow.
+  The counter decrements correctly when you Undo a number.
+
+* Text, Watermark - Present in the menu and Settings for parity with the
+  Windows app, not implemented yet.
+
+Undo the last placed element with Cmd+Z. Clear all elements with Cmd+Shift+Z.
+
+
+BARS
+----
+A dual-thumb vertical slider on the right-side panel masks off the top
+and/or bottom of the capture area with a solid color. Drag either thumb
+to resize a mask; double-click the slider to reset both to 0 (no mask).
+Unlike Guide Lines, Bars ARE baked into the saved/copied screenshot.
+Bar color can be changed in Settings > Bar.
+
+
+GUIDE LINES
+-----------
+Guide lines are drawn over the capture area to help with composition.
+They are NOT saved to the screenshot.
+
+Three modes (Settings > Guides):
+* Thirds - divides the area into equal thirds (rule of thirds)
+* Quarters - divides the area into equal quarters
+* Custom Margins - set arbitrary pixel offsets from each edge independently
+
+
+SETTINGS & PROFILES
+--------------------
+Open Settings from the toolbar, the hamburger menu, or click the gear icon
+to configure all visual options.
+
+Profiles let you save and load named setting presets - useful when
+different projects need different annotation styles or output folders.
+
+Use the Profile controls at the bottom of the Settings window:
+* Load - apply a saved profile
+* Save as... - save current settings under a new name
+* Delete - remove a profile
+* Reset - restore all settings to their defaults
+
+Settings and profiles are stored as JSON in the app's standard macOS
+preferences (UserDefaults), not as separate files on disk. The Profile
+dropdown remembers the last profile you loaded or saved.
+
+
+FILE SETTINGS
+--------------
+Configure output format in Settings > File:
+
+* Format - png (default) or jpg
+
+* PNG Depth - color depth for PNG output:
+  32bpp - full RGBA, default
+  24bpp - no alpha channel, slightly smaller file, same visual quality
+  8bpp - falls back to plain 24bpp RGB (macOS has no simple indexed-
+  palette PNG encoder, unlike the Windows version's true 256-color PNGs)
+
+* Compression - JPEG quality from 1 to 100 (default 75).
+  Only applies to jpg format.
+
+* Save Folder - folder where screenshots are saved.
+  Defaults to ~/Desktop/FastScreener Screens.
+
+File naming:
+* If a file name is set in the toolbar, the file is overwritten on each
+  new capture.
+* If no name is set, a unique timestamped name is generated automatically.
+
+
+WINDOW SIZES
+------------
+Select from 4 preset capture sizes with Opt+1 through Opt+4, the
+resolution-cycle toolbar button, or the hamburger menu. Customize each
+preset in Settings > Sizes. Opt+5 captures the full screen; Ctrl+Shift+M
+toggles Max Size.
+
+
+DPI & MULTI-MONITOR
+--------------------
+* The capture window snaps to screen edges automatically - the actual
+  capture area's edges snap flush, not just the window's outer chrome.
+* DPI Scale (Settings > Appearance): when enabled, the saved/copied image
+  always matches the size shown exactly in pixels, regardless of a
+  display's Retina scale factor. When disabled, it keeps the display's
+  native pixel density.
+
+
+KEYBOARD SHORTCUTS
+--------------------
+F4              Capture (works globally, even when unfocused)
+1 / 2 / 3 / 0   Select Arrow / Frame / Number / no tool
+Cmd+Z           Undo last annotation
+Cmd+Shift+Z     Clear all annotations
+Opt+1 - Opt+4   Apply capture size preset 1-4
+Opt+5           Fullscreen capture size
+Ctrl+Shift+M    Toggle Max Size
+Ctrl+Right      Cycle to the next preset size
+F1              Show this Help window
+
+
+TROUBLESHOOTING
+-----------------
+If something looks wrong after an update, try Reset in Settings to
+restore all values to their defaults.
