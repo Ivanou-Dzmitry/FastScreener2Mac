@@ -38,7 +38,8 @@ final class CaptureFrameView: NSView {
     private var toolClusterZone: CGRect {
         let groupBottom = Self.bottomBarHeight + 8
         let groupTop = groupBottom + toolSlotCount * Self.leftBarWidth
-        return CGRect(x: 0, y: groupBottom - 4, width: Self.leftBarWidth, height: groupTop - groupBottom + 8)
+        let x: CGFloat = isHorizontallySwapped ? bounds.width - Self.leftBarWidth : 0
+        return CGRect(x: x, y: groupBottom - 4, width: Self.leftBarWidth, height: groupTop - groupBottom + 8)
     }
 
     private enum DragMode {
@@ -74,10 +75,24 @@ final class CaptureFrameView: NSView {
     var filenameOverride: String { filenameField.stringValue }
 
     private var hamburgerButton: IconButton!
+    private var captureButton: IconButton!
+    private var resCycleButton: IconButton!
+    private var settingsButton: IconButton!
+    private var minimizeButton: IconButton!
+    private var closeButton: IconButton!
     private var toolButtons: [AnnotationTool: IconButton] = [:]
     private var saveToDiskButton: IconButton!
     private var guidesButton: IconButton!
     private var barSlider: VerticalRangeSlider!
+
+    // Matches the original's SwapPanelsIfNeeded: if the window is
+    // dragged past the screen edge, the side holding the important
+    // controls (annotation tools on the left, header buttons on top)
+    // swaps with its opposite so those controls stay reachable instead
+    // of ending up off-screen. Windows re-docks whole panels; here the
+    // background bars stay put and just the controls move between them.
+    private var isHorizontallySwapped = false
+    private var isVerticallySwapped = false
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -100,31 +115,34 @@ final class CaptureFrameView: NSView {
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        // Bottom bar is intentionally NOT filled across its full width:
-        // only the left segment (under the left toolbar) is opaque
-        // chrome; the rest stays fully transparent (shows through to
-        // whatever's beneath), with the status text floating on top of
-        // that transparent area when Show Info is on.
+        // Whichever band currently hosts the header controls (top,
+        // unless swapped) gets the full solid fill so the filename field
+        // etc. have an opaque backdrop; whichever hosts the status text
+        // only gets the corner accents, with the middle left transparent
+        // for the status text's own background to show through.
+        let headerBandY: CGFloat = isVerticallySwapped ? 0 : bounds.height - Self.topBarHeight
+        let statusBandY: CGFloat = isVerticallySwapped ? bounds.height - Self.topBarHeight : 0
+
         settings.chromeColor.setFill()
-        NSBezierPath(rect: CGRect(x: 0, y: bounds.height - Self.topBarHeight, width: bounds.width, height: Self.topBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: 0, y: headerBandY, width: bounds.width, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - Self.rightBarWidth, y: 0, width: Self.rightBarWidth, height: bounds.height)).fill()
         NSBezierPath(rect: CGRect(x: 0, y: 0, width: Self.leftBarWidth, height: bounds.height)).fill()
-        // The bottom-row corners are wider than the bars themselves —
+        // The status-band corners are wider than the bars themselves —
         // extend just that row's fill outward on each side.
-        NSBezierPath(rect: CGRect(x: 0, y: 0, width: bottomCornerWidth, height: Self.bottomBarHeight)).fill()
-        NSBezierPath(rect: CGRect(x: bounds.width - bottomCornerWidth, y: 0, width: bottomCornerWidth, height: Self.bottomBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: 0, y: statusBandY, width: bottomCornerWidth, height: Self.bottomBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: bounds.width - bottomCornerWidth, y: statusBandY, width: bottomCornerWidth, height: Self.bottomBarHeight)).fill()
 
         // Only the tool-button cluster gets its own fixed-grey zone
         // (sized to the buttons, not the whole bar) — painted over the
-        // dynamic fill above, matching the top bar's settings cluster.
+        // dynamic fill above, matching the header cluster's own zone.
         fixedControlBackground.setFill()
         NSBezierPath(rect: toolClusterZone).fill()
 
         // Both icon clusters (hamburger/capture/resolution-cycle on the
         // left, settings/minimize/close on the right) stay fixed grey,
-        // unaffected by Panel Color.
-        NSBezierPath(rect: CGRect(x: iconClusterInset, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
-        NSBezierPath(rect: CGRect(x: bounds.width - iconClusterInset - iconClusterWidth, y: bounds.height - Self.topBarHeight, width: iconClusterWidth, height: Self.topBarHeight)).fill()
+        // unaffected by Panel Color — and follow the header band.
+        NSBezierPath(rect: CGRect(x: iconClusterInset, y: headerBandY, width: iconClusterWidth, height: Self.topBarHeight)).fill()
+        NSBezierPath(rect: CGRect(x: bounds.width - iconClusterInset - iconClusterWidth, y: headerBandY, width: iconClusterWidth, height: Self.topBarHeight)).fill()
 
         drawGuides()
 
@@ -253,7 +271,8 @@ final class CaptureFrameView: NSView {
         let zoneMinX = bottomCornerWidth
         let zoneMaxX = bounds.width - bottomCornerWidth
         let x = zoneMinX + (zoneMaxX - zoneMinX - size.width) / 2
-        text.draw(at: CGPoint(x: x, y: 4), withAttributes: attrs)
+        let y: CGFloat = isVerticallySwapped ? bounds.height - Self.topBarHeight + 4 : 4
+        text.draw(at: CGPoint(x: x, y: y), withAttributes: attrs)
     }
 
     // MARK: - Chrome setup
@@ -271,12 +290,12 @@ final class CaptureFrameView: NSView {
         hamburgerButton.onClick = { [weak self] in self?.showMenu() }
         addSubview(hamburgerButton)
 
-        let captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
+        captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         captureButton.autoresizingMask = [.minYMargin]
         captureButton.onClick = { [weak self] in self?.onCaptureRequested?() }
         addSubview(captureButton)
 
-        let resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
+        resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         resCycleButton.autoresizingMask = [.minYMargin]
         resCycleButton.onClick = { [weak self] in self?.cyclePreset() }
         addSubview(resCycleButton)
@@ -297,17 +316,17 @@ final class CaptureFrameView: NSView {
         filenameField.delegate = self
         addSubview(filenameField)
 
-        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: rightZoneX, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
+        settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: rightZoneX, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
         settingsButton.onClick = { [weak self] in self?.onSettingsRequested?() }
         addSubview(settingsButton)
 
-        let minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
+        minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         minimizeButton.autoresizingMask = [.minXMargin, .minYMargin]
         minimizeButton.onClick = { [weak self] in self?.window?.miniaturize(nil) }
         addSubview(minimizeButton)
 
-        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4, hoverColor: NSColor(calibratedRed: 165.0 / 255, green: 42.0 / 255, blue: 42.0 / 255, alpha: 1)) // Brown, matching buttonCloseForm_MouseEnter
+        closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4, hoverColor: NSColor(calibratedRed: 165.0 / 255, green: 42.0 / 255, blue: 42.0 / 255, alpha: 1)) // Brown, matching buttonCloseForm_MouseEnter
         closeButton.autoresizingMask = [.minXMargin, .minYMargin]
         closeButton.onClick = { NSApplication.shared.terminate(nil) }
         addSubview(closeButton)
@@ -388,6 +407,76 @@ final class CaptureFrameView: NSView {
     private func updateToolButtonHighlight() {
         for (tool, button) in toolButtons {
             button.isActive = (tool == currentTool)
+        }
+    }
+
+    // MARK: - Panel swap (SwapPanelsIfNeeded port)
+
+    // Matches the original's Panel_MouseUp -> SwapPanelsIfNeeded: checked
+    // once when a drag ends, not continuously during the drag.
+    private func swapPanelsIfNeeded() {
+        guard let window else { return }
+        let screenFrame = virtualScreenFrame()
+        let frame = window.frame
+        // AppKit is Y-up, so "off the top of the screen" is frame.maxY
+        // past screenFrame.maxY — the mirror of the original's
+        // formBounds.Top < screenBounds.Top in WinForms' Y-down space.
+        let outsideLeft = frame.minX < screenFrame.minX
+        let outsideTop = frame.maxY > screenFrame.maxY
+
+        var changed = false
+        if outsideLeft != isHorizontallySwapped {
+            isHorizontallySwapped = outsideLeft
+            layoutHorizontalGroup()
+            changed = true
+        }
+        if outsideTop != isVerticallySwapped {
+            isVerticallySwapped = outsideTop
+            layoutVerticalGroup()
+            changed = true
+        }
+        if changed { needsDisplay = true }
+    }
+
+    // Moves the annotation tool column (Arrow/Frame/Number/Save/Guides)
+    // and the Bars slider to the opposite bar, so the tools stay
+    // reachable when the left bar itself has gone off-screen.
+    private func layoutHorizontalGroup() {
+        let toolX: CGFloat = isHorizontallySwapped ? bounds.width - Self.rightBarWidth : 0
+        let toolMask: NSView.AutoresizingMask = isHorizontallySwapped ? [.minXMargin, .maxYMargin] : [.maxYMargin]
+        for button in toolButtons.values {
+            button.frame.origin.x = toolX
+            button.autoresizingMask = toolMask
+        }
+        saveToDiskButton.frame.origin.x = toolX
+        saveToDiskButton.autoresizingMask = toolMask
+        guidesButton.frame.origin.x = toolX
+        guidesButton.autoresizingMask = toolMask
+
+        let sliderX: CGFloat = isHorizontallySwapped ? 4 : bounds.width - Self.rightBarWidth + 4
+        let sliderMask: NSView.AutoresizingMask = isHorizontallySwapped ? [.height] : [.height, .minXMargin]
+        barSlider.frame.origin.x = sliderX
+        barSlider.autoresizingMask = sliderMask
+    }
+
+    // Moves the header controls (hamburger/capture/resCycle/filename/
+    // settings/minimize/close) to the bottom band, and the status text
+    // to the top band, so the header stays reachable when the top bar
+    // itself has gone off-screen above the display.
+    private func layoutVerticalGroup() {
+        let headerY: CGFloat = isVerticallySwapped ? 0 : bounds.height - Self.topBarHeight
+        let leftMask: NSView.AutoresizingMask = isVerticallySwapped ? [.maxYMargin] : [.minYMargin]
+        for button in [hamburgerButton, captureButton, resCycleButton] {
+            button?.frame.origin.y = headerY
+            button?.autoresizingMask = leftMask
+        }
+        filenameField.frame.origin.y = headerY + 4
+        filenameField.autoresizingMask = leftMask
+
+        let rightMask: NSView.AutoresizingMask = isVerticallySwapped ? [.minXMargin, .maxYMargin] : [.minXMargin, .minYMargin]
+        for button in [settingsButton, minimizeButton, closeButton] {
+            button?.frame.origin.y = headerY
+            button?.autoresizingMask = rightMask
         }
     }
 
@@ -483,6 +572,9 @@ final class CaptureFrameView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if case .move = dragMode {
+            swapPanelsIfNeeded()
+        }
         dragMode = .none
     }
 
