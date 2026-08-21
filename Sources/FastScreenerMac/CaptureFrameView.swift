@@ -309,7 +309,7 @@ final class CaptureFrameView: NSView {
         // here would permanently bake in whatever that happened to be.
         let filenameX = leftZoneX + iconClusterWidth + 4
         let rightZoneX = bounds.width - iconClusterInset - iconClusterWidth
-        filenameField = NSTextField(frame: CGRect(x: filenameX, y: topY + 4, width: 260, height: 20))
+        filenameField = NSTextField(frame: CGRect(x: filenameX, y: topY + 4, width: 260, height: 24))
         filenameField.placeholderString = "File name (\(Self.filenameMaxLength) symbols, optional)"
         filenameField.font = .systemFont(ofSize: 11)
         filenameField.autoresizingMask = [.minYMargin]

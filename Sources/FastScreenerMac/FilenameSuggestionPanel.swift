@@ -13,7 +13,7 @@ final class FilenameSuggestionPanel: NSObject {
     private var panel: NSPanel?
     private var tableView: NSTableView!
     private var items: [String] = []
-    private let rowHeight: CGFloat = 20
+    private let rowHeight: CGFloat = 26
     private let maxVisibleRows = 6
 
     func show(matches: [String], below field: NSView, in parentWindow: NSWindow, openUpward: Bool) {
@@ -27,6 +27,14 @@ final class FilenameSuggestionPanel: NSObject {
         let height = CGFloat(visibleRows) * rowHeight
         let y = openUpward ? fieldFrameOnScreen.maxY : fieldFrameOnScreen.minY - height
         let frame = CGRect(x: fieldFrameOnScreen.minX, y: y, width: fieldFrameOnScreen.width, height: height)
+
+        // NSTableView doesn't auto-size its own frame to numberOfRows *
+        // rowHeight — without this the document view stayed at its
+        // initial .zero frame, so the scroll view's content height never
+        // matched the real row count and the last row was clipped unless
+        // you scrolled to reveal it.
+        tableView.frame = CGRect(x: 0, y: 0, width: frame.width, height: CGFloat(items.count) * rowHeight)
+        tableView.tableColumns.first?.width = frame.width
 
         panel?.setFrame(frame, display: true)
         if let panel, panel.parent == nil {
