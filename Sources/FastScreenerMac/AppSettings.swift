@@ -41,6 +41,16 @@ final class AppSettings {
     var textFontSize: CGFloat { didSet { save() } }
     var textFontFamily: String { didSet { save() } } // empty = system default
 
+    // Watermark: a fixed overlay image (not a per-click annotation like
+    // Arrow/Number/Text), positioned at one of the 4 corners of the
+    // capture area. size = target length of the image's longer side
+    // (aspect preserved); padding = offset from the touching edges.
+    var watermarkEnabled: Bool { didSet { save() } }
+    var watermarkPath: String? { didSet { save() } }
+    var watermarkSize: CGFloat { didSet { save() } }
+    var watermarkPadding: CGFloat { didSet { save() } }
+    var watermarkPosition: String { didSet { save() } } // "top-left"/"top-right"/"bottom-left"/"bottom-right"
+
     var chromeColor: NSColor { didSet { save() } } // top/left/bottom bar background ("Panel Color" in the original)
     var clearElementsAfterCapture: Bool { didSet { save() } }
     var saveToFile: Bool { didSet { save() } } // if off, F4 only copies to clipboard
@@ -128,6 +138,12 @@ final class AppSettings {
         textFontSize = Self.loadNumber(key: "textFontSize") ?? 26
         textFontFamily = defaults.string(forKey: "textFontFamily") ?? ""
 
+        watermarkEnabled = defaults.object(forKey: "watermarkEnabled") as? Bool ?? false
+        watermarkPath = defaults.string(forKey: "watermarkPath")
+        watermarkSize = Self.loadNumber(key: "watermarkSize") ?? 50
+        watermarkPadding = Self.loadNumber(key: "watermarkPadding") ?? 10
+        watermarkPosition = defaults.string(forKey: "watermarkPosition") ?? "top-right"
+
         chromeColor = Self.loadColor(key: "chromeColor") ?? NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 1) // SlateGray, opaque like the original
         clearElementsAfterCapture = defaults.object(forKey: "clearElementsAfterCapture") as? Bool ?? true
         saveToFile = defaults.object(forKey: "saveToFile") as? Bool ?? true
@@ -166,6 +182,11 @@ final class AppSettings {
         defaults.set(numberFontFamily, forKey: "numberFontFamily")
         defaults.set(Double(textFontSize), forKey: "textFontSize")
         defaults.set(textFontFamily, forKey: "textFontFamily")
+        defaults.set(watermarkEnabled, forKey: "watermarkEnabled")
+        if let watermarkPath { defaults.set(watermarkPath, forKey: "watermarkPath") } else { defaults.removeObject(forKey: "watermarkPath") }
+        defaults.set(Double(watermarkSize), forKey: "watermarkSize")
+        defaults.set(Double(watermarkPadding), forKey: "watermarkPadding")
+        defaults.set(watermarkPosition, forKey: "watermarkPosition")
         defaults.set(clearElementsAfterCapture, forKey: "clearElementsAfterCapture")
         defaults.set(saveToFile, forKey: "saveToFile")
         defaults.set(showInfoLabel, forKey: "showInfoLabel")
@@ -333,6 +354,11 @@ final class AppSettings {
         textColor = Self.defaultOrange
         textFontSize = 26
         textFontFamily = ""
+        watermarkEnabled = false
+        watermarkPath = nil
+        watermarkSize = 50
+        watermarkPadding = 10
+        watermarkPosition = "top-right"
         chromeColor = NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 1)
         clearElementsAfterCapture = true
         saveToFile = true

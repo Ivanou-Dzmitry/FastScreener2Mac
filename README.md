@@ -16,17 +16,18 @@ A lightweight macOS screen capture and annotation tool — a native Mac port of 
 - Captures via **ScreenCaptureKit**, Apple's native capture API, with correct handling of Retina/mixed-DPI multi-monitor setups
 
 ### Annotation Tools
-All tools are placed with the **Middle Mouse Button (MMB)**; pick the active tool from the left toolbar, the hamburger menu, or keys `1`/`2`/`3`/`0`.
+All tools are placed with the **Middle Mouse Button (MMB)**; pick the active tool from the left toolbar, the hamburger menu, or keys `1`/`2`/`3`/`4`/`0`.
 
 | Tool | Description |
 |------|-------------|
 | **Arrow** | Click to anchor the arrowhead, drag to set direction — snaps to the 4 diagonals. |
 | **Frame** | Click for a fixed-size box (from Settings); drag past a threshold for a free-size box. |
 | **Number** | Places sequential numbers with a drop shadow. Counter decrements correctly on Undo. |
-| Text, Watermark | Present in the menu/Settings for parity with the Windows app, not yet implemented. |
+| **Text** | Click to open a dialog (text + native color/font pickers, 45-char cap); OK places it at the click point. Only one text exists at a time — placing a new one replaces the old. |
 
 - **Undo** last annotation with `⌘Z`, **Clear all** with `⌘⇧Z`
 - **Bars**: a dual-thumb vertical slider on the right-side panel masks off the top and/or bottom of the capture area with a solid color — drag either thumb to resize a mask, double-click the slider to reset both to 0. The mask is baked into the saved/copied image, unlike Guides.
+- **Watermark**: toggle from the toolbar or hamburger menu — enabling it (with no image set) prompts for a PNG/JPEG file, then overlays it at one of the 4 corners (Settings > Watermark: position, size, padding). Baked into the saved/copied image.
 
 ### Guide Lines
 Non-destructive dashed overlay lines to help with composition — never included in the saved screenshot.

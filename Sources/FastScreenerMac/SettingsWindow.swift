@@ -246,7 +246,34 @@ final class SettingsWindow: NSWindow {
         stack.addArrangedSubview(sizesHint)
 
         stack.addArrangedSubview(Self.sectionLabel("Watermark"))
-        stack.addArrangedSubview(Self.stubNote())
+        let chooseWatermarkButton = ActionButton(title: "Choose Image…") { [weak self] in
+            let panel = NSOpenPanel()
+            panel.title = "Select Watermark Image"
+            panel.allowedContentTypes = [.png, .jpeg]
+            panel.canChooseDirectories = false
+            panel.canChooseFiles = true
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+            settings.watermarkPath = url.path
+            self?.rebuildContent()
+        }
+        stack.addArrangedSubview(chooseWatermarkButton)
+        let watermarkPathLabel = NSTextField(wrappingLabelWithString: settings.watermarkPath ?? "No image selected")
+        watermarkPathLabel.font = .systemFont(ofSize: 11)
+        watermarkPathLabel.textColor = .secondaryLabelColor
+        watermarkPathLabel.preferredMaxLayoutWidth = 320
+        stack.addArrangedSubview(watermarkPathLabel)
+
+        let watermarkPositions = ["top-left", "top-right", "bottom-left", "bottom-right"]
+        stack.addArrangedSubview(Self.row(title: "Position", control: ChoicePicker(options: watermarkPositions, selected: settings.watermarkPosition) { value in
+            settings.watermarkPosition = value
+        }))
+        stack.addArrangedSubview(Self.row(title: "Size (px, longer side)", control: NumberField(value: settings.watermarkSize) { settings.watermarkSize = max(1, $0) }))
+        stack.addArrangedSubview(Self.row(title: "Padding (px)", control: NumberField(value: settings.watermarkPadding) { settings.watermarkPadding = max(0, $0) }))
+        let watermarkHint = NSTextField(wrappingLabelWithString: "Toggle the watermark on/off from the toolbar button or the hamburger menu; enabling it there prompts for an image (usually a PNG with transparency).")
+        watermarkHint.font = .systemFont(ofSize: 11)
+        watermarkHint.textColor = .secondaryLabelColor
+        watermarkHint.preferredMaxLayoutWidth = 340
+        stack.addArrangedSubview(watermarkHint)
 
         stack.addArrangedSubview(Self.sectionLabel("Appearance"))
         stack.addArrangedSubview(Self.row(title: "Panel color (chrome)", control: ColorWell(color: settings.chromeColor) { settings.chromeColor = $0 }))
@@ -380,13 +407,6 @@ final class SettingsWindow: NSWindow {
     private static func sectionLabel(_ text: String) -> NSTextField {
         let label = NSTextField(labelWithString: text)
         label.font = .boldSystemFont(ofSize: 13)
-        return label
-    }
-
-    private static func stubNote() -> NSView {
-        let label = NSTextField(labelWithString: "Not implemented yet")
-        label.font = .systemFont(ofSize: 11)
-        label.textColor = .tertiaryLabelColor
         return label
     }
 

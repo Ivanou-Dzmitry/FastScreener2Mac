@@ -247,6 +247,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         output.lockFocus()
         image.draw(in: CGRect(origin: .zero, size: size))
 
+        // Drawn first, same as the original's paint order (watermark ->
+        // guides -> arrows/frame -> text/numbers -> bars), so annotations
+        // and Bars' masks end up on top of it.
+        let settings = AppSettings.shared
+        if settings.watermarkEnabled, let path = settings.watermarkPath, let watermarkImage = NSImage(contentsOfFile: path) {
+            let frame = WatermarkRenderer.layout(imageSize: watermarkImage.size, in: CGRect(origin: .zero, size: size), size: settings.watermarkSize, padding: settings.watermarkPadding, position: settings.watermarkPosition)
+            if frame.width > 0, frame.height > 0 {
+                watermarkImage.draw(in: frame, from: .zero, operation: .sourceOver, fraction: 1.0)
+            }
+        }
+
         if !annotations.isEmpty, let context = NSGraphicsContext.current {
             let settings = AppSettings.shared
             context.saveGraphicsState()
@@ -271,7 +282,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Bars: real mask rectangles baked into the output (unlike
         // Guides), matching the original's opaque pnlBarTop/pnlBarBottom
         // panels that sat over the capture area.
-        let settings = AppSettings.shared
         let topHeight = size.height * settings.barTopFraction
         let bottomHeight = size.height * settings.barBottomFraction
         if topHeight > 0 || bottomHeight > 0 {

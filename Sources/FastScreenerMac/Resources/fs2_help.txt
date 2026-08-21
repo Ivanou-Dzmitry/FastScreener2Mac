@@ -6,7 +6,7 @@ Contact: id.cgtalk@gmail.com
 ANNOTATION TOOLS
 ----------------
 Add graphic elements using the Middle Mouse Button (MMB). Pick the active
-tool from the left toolbar, the hamburger menu, or keys 1 / 2 / 3 / 0.
+tool from the left toolbar, the hamburger menu, or keys 1 / 2 / 3 / 4 / 0.
 
 * Arrow - Click MMB to anchor the arrowhead, drag to set direction.
   Snaps to the 4 diagonals.
@@ -17,8 +17,9 @@ tool from the left toolbar, the hamburger menu, or keys 1 / 2 / 3 / 0.
 * Number - Places sequential numbers with a drop shadow.
   The counter decrements correctly when you Undo a number.
 
-* Text, Watermark - Present in the menu and Settings for parity with the
-  Windows app, not implemented yet.
+* Text - Click MMB to open a dialog: type text, pick a color/font, OK
+  places it at the click point (up to 45 characters). Only one text
+  exists at a time - placing a new one replaces the old.
 
 Undo the last placed element with Cmd+Z. Clear all elements with Cmd+Shift+Z.
 
@@ -30,6 +31,21 @@ and/or bottom of the capture area with a solid color. Drag either thumb
 to resize a mask; double-click the slider to reset both to 0 (no mask).
 Unlike Guide Lines, Bars ARE baked into the saved/copied screenshot.
 Bar color can be changed in Settings > Bar.
+
+
+WATERMARK
+---------
+Toggle from the toolbar or hamburger menu. Turning it on always prompts
+for an image (usually a PNG with transparency), even if one was set
+before. It's overlaid at one of the 4 corners, offset from the edges by
+a fixed padding, resized so its longer side matches a fixed size
+(aspect ratio preserved). Baked into the saved/copied screenshot.
+
+Configure in Settings > Watermark:
+* Choose Image... - pick the image without toggling it off/on
+* Position - top-left / top-right (default) / bottom-left / bottom-right
+* Size - target length of the longer side, in px (default 50)
+* Padding - offset from the touching edges, in px (default 10)
 
 
 GUIDE LINES
@@ -107,7 +123,7 @@ DPI & MULTI-MONITOR
 KEYBOARD SHORTCUTS
 --------------------
 F4              Capture (works globally, even when unfocused)
-1 / 2 / 3 / 0   Select Arrow / Frame / Number / no tool
+1 / 2 / 3 / 4 / 0   Select Arrow / Frame / Number / Text / no tool
 Cmd+Z           Undo last annotation
 Cmd+Shift+Z     Clear all annotations
 Opt+1 - Opt+4   Apply capture size preset 1-4

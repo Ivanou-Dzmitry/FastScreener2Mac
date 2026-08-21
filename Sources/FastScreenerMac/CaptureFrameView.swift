@@ -29,7 +29,7 @@ final class CaptureFrameView: NSView {
     private let fixedControlBackground = NSColor(calibratedWhite: 0.4, alpha: 1)
     private let iconClusterInset: CGFloat = CaptureFrameView.leftBarWidth
     private let iconClusterWidth: CGFloat = 96 // 3 buttons x 32pt, edge-to-edge
-    private let toolSlotCount: CGFloat = 6 // Arrow/Frame/Number/Text + Save-to-Disk + Guidelines
+    private let toolSlotCount: CGFloat = 7 // Arrow/Frame/Number/Text + Save-to-Disk + Guidelines + Watermark
     private let bottomCornerWidth: CGFloat = 64 // wider than leftBarWidth/rightBarWidth, per reference
 
     // Bounding box of the left-bar tool-button stack (see setupChrome's
@@ -84,6 +84,8 @@ final class CaptureFrameView: NSView {
     private var toolButtons: [AnnotationTool: IconButton] = [:]
     private var saveToDiskButton: IconButton!
     private var guidesButton: IconButton!
+    private var watermarkButton: IconButton!
+    private var watermarkImage: NSImage?
     private var barSlider: VerticalRangeSlider!
 
     // Matches the original's SwapPanelsIfNeeded: if the window is
@@ -145,6 +147,7 @@ final class CaptureFrameView: NSView {
         NSBezierPath(rect: CGRect(x: iconClusterInset, y: headerBandY, width: iconClusterWidth, height: Self.topBarHeight)).fill()
         NSBezierPath(rect: CGRect(x: bounds.width - iconClusterInset - iconClusterWidth, y: headerBandY, width: iconClusterWidth, height: Self.topBarHeight)).fill()
 
+        drawWatermark()
         drawGuides()
 
         for annotation in annotations {
@@ -384,6 +387,17 @@ final class CaptureFrameView: NSView {
         }
         addSubview(guidesButton)
 
+        // Watermark toggle: matches chbWatermark — turning it ON (when
+        // no image is loaded yet) opens a file picker; the original
+        // always re-prompts on every ON toggle, even if a path was
+        // already set from before.
+        watermarkButton = IconButton(icon: IconLoader.load("watermark_icon"), frame: CGRect(x: 0, y: groupBottom + Self.leftBarWidth * 2, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 4)
+        watermarkButton.autoresizingMask = [.maxYMargin]
+        watermarkButton.isActive = settings.watermarkEnabled
+        watermarkButton.onClick = { [weak self] in self?.toggleWatermark() }
+        addSubview(watermarkButton)
+        loadWatermarkImage()
+
         // Bars slider: right bar, spanning exactly the capture area's
         // height (not the whole bar) — matches "высота слайдера высотой
         // с область захвата".
@@ -412,6 +426,45 @@ final class CaptureFrameView: NSView {
         for (tool, button) in toolButtons {
             button.isActive = (tool == currentTool)
         }
+    }
+
+    // MARK: - Watermark
+
+    private func loadWatermarkImage() {
+        watermarkImage = settings.watermarkPath.flatMap { NSImage(contentsOfFile: $0) }
+    }
+
+    // Matches DrawWatermarkStatus: unchecking just turns it off;
+    // checking always opens a file picker, even if a path is already
+    // set — cancelling leaves it off, same as the original reverting
+    // the checkbox on a cancelled OpenFileDialog.
+    private func toggleWatermark() {
+        if settings.watermarkEnabled {
+            settings.watermarkEnabled = false
+            watermarkButton.isActive = false
+            needsDisplay = true
+            return
+        }
+
+        let panel = NSOpenPanel()
+        panel.title = "Select Watermark Image"
+        panel.allowedContentTypes = [.png, .jpeg]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        settings.watermarkPath = url.path
+        loadWatermarkImage()
+        settings.watermarkEnabled = true
+        watermarkButton.isActive = true
+        needsDisplay = true
+    }
+
+    private func drawWatermark() {
+        guard settings.watermarkEnabled, let watermarkImage else { return }
+        let frame = WatermarkRenderer.layout(imageSize: watermarkImage.size, in: captureRect, size: settings.watermarkSize, padding: settings.watermarkPadding, position: settings.watermarkPosition)
+        guard frame.width > 0, frame.height > 0 else { return }
+        watermarkImage.draw(in: frame, from: .zero, operation: .sourceOver, fraction: 1.0)
     }
 
     // MARK: - Panel swap (SwapPanelsIfNeeded port)
@@ -487,8 +540,6 @@ final class CaptureFrameView: NSView {
     // MARK: - Menu
 
     // Mirrors the original's hamburger menu structure/order exactly.
-    // Everything wired to a working feature is live; Text and Watermark
-    // remain disabled stubs, since those tools aren't built yet.
     private func showMenu() {
         let menu = NSMenu()
 
@@ -512,7 +563,9 @@ final class CaptureFrameView: NSView {
             item.state = (tool == currentTool) ? .on : .off
             menu.addItem(item)
         }
-        menu.addItem(Self.stub("Watermark"))
+        let watermarkItem = ClosureMenuItem(title: "Watermark") { [weak self] in self?.toggleWatermark() }
+        watermarkItem.state = settings.watermarkEnabled ? .on : .off
+        menu.addItem(watermarkItem)
         menu.addItem(.separator())
 
         let guidesItem = ClosureMenuItem(title: "Guidelines") { [weak self] in
@@ -544,12 +597,6 @@ final class CaptureFrameView: NSView {
         menu.addItem(ClosureMenuItem(title: "Exit") { NSApplication.shared.terminate(nil) })
 
         menu.popUp(positioning: nil, at: CGPoint(x: hamburgerButton.frame.minX, y: hamburgerButton.frame.minY), in: self)
-    }
-
-    private static func stub(_ title: String) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        return item
     }
 
     // MARK: - Left button: resize / move
