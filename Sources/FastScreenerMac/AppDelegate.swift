@@ -244,6 +244,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             context.restoreGraphicsState()
         }
 
+        // Bars: real mask rectangles baked into the output (unlike
+        // Guides), matching the original's opaque pnlBarTop/pnlBarBottom
+        // panels that sat over the capture area.
+        let settings = AppSettings.shared
+        let topHeight = size.height * settings.barTopFraction
+        let bottomHeight = size.height * settings.barBottomFraction
+        if topHeight > 0 || bottomHeight > 0 {
+            settings.barColor.setFill()
+            if topHeight > 0 {
+                NSBezierPath(rect: CGRect(x: 0, y: size.height - topHeight, width: size.width, height: topHeight)).fill()
+            }
+            if bottomHeight > 0 {
+                NSBezierPath(rect: CGRect(x: 0, y: 0, width: size.width, height: bottomHeight)).fill()
+            }
+        }
+
         output.unlockFocus()
         return output
     }

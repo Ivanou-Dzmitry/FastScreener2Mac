@@ -74,6 +74,14 @@ final class AppSettings {
     var guideLeftIndent: CGFloat { didSet { save() } }
     var guideRightIndent: CGFloat { didSet { save() } }
 
+    // Bars: two solid mask rectangles at the top/bottom of the capture
+    // area, sized by the right-side dual-thumb slider — unlike Guides,
+    // these ARE baked into the captured image (for covering/redacting
+    // parts of the shot). Fractions are 0...1 of the capture height.
+    var barColor: NSColor { didSet { save() } }
+    var barTopFraction: CGFloat { didSet { save() } }
+    var barBottomFraction: CGFloat { didSet { save() } }
+
     private init() {
         arrowColor = Self.loadColor(key: "arrowColor") ?? .cyan
         arrowLength = Self.loadNumber(key: "arrowLength") ?? 50
@@ -107,6 +115,10 @@ final class AppSettings {
         guideBottomIndent = Self.loadNumber(key: "guideBottomIndent") ?? 10
         guideLeftIndent = Self.loadNumber(key: "guideLeftIndent") ?? 10
         guideRightIndent = Self.loadNumber(key: "guideRightIndent") ?? 10
+
+        barColor = Self.loadColor(key: "barColor") ?? NSColor(calibratedWhite: 0.4, alpha: 1) // DarkGray
+        barTopFraction = Self.loadNumber(key: "barTopFraction") ?? 0
+        barBottomFraction = Self.loadNumber(key: "barBottomFraction") ?? 0
     }
 
     private func save() {
@@ -134,6 +146,9 @@ final class AppSettings {
         defaults.set(Double(guideLeftIndent), forKey: "guideLeftIndent")
         defaults.set(Double(guideRightIndent), forKey: "guideRightIndent")
         Self.saveColor(guideColor, key: "guideColor")
+        defaults.set(Double(barTopFraction), forKey: "barTopFraction")
+        defaults.set(Double(barBottomFraction), forKey: "barBottomFraction")
+        Self.saveColor(barColor, key: "barColor")
         Self.saveColor(arrowColor, key: "arrowColor")
         Self.saveColor(frameColor, key: "frameColor")
         Self.saveColor(numberColor, key: "numberColor")
@@ -282,5 +297,8 @@ final class AppSettings {
         guideBottomIndent = 10
         guideLeftIndent = 10
         guideRightIndent = 10
+        barColor = NSColor(calibratedWhite: 0.4, alpha: 1)
+        barTopFraction = 0
+        barBottomFraction = 0
     }
 }

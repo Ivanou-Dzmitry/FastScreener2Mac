@@ -165,7 +165,12 @@ final class SettingsWindow: NSWindow {
         stack.addArrangedSubview(Self.row(title: "Width (px, 1-5)", control: NumberField(value: settings.arrowWidth) { settings.arrowWidth = min(5, max(1, $0)) }))
 
         stack.addArrangedSubview(Self.sectionLabel("Bar"))
-        stack.addArrangedSubview(Self.stubNote())
+        stack.addArrangedSubview(Self.row(title: "Color", control: ColorWell(color: settings.barColor) { settings.barColor = $0 }))
+        let barHint = NSTextField(wrappingLabelWithString: "Drag the two thumbs on the right-side panel to mask off the top/bottom of the capture area; double-click the slider to reset both to 0.")
+        barHint.font = .systemFont(ofSize: 11)
+        barHint.textColor = .secondaryLabelColor
+        barHint.preferredMaxLayoutWidth = 340
+        stack.addArrangedSubview(barHint)
 
         stack.addArrangedSubview(Self.sectionLabel("File"))
         // Full-width vertical layout, not a title+control row: the path

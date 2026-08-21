@@ -76,6 +76,7 @@ final class CaptureFrameView: NSView {
     private var toolButtons: [AnnotationTool: IconButton] = [:]
     private var saveToDiskButton: IconButton!
     private var guidesButton: IconButton!
+    private var barSlider: VerticalRangeSlider!
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -131,6 +132,12 @@ final class CaptureFrameView: NSView {
         }
         drawPendingPreview()
 
+        // Drawn last, on top of annotations: these mask/redact, unlike
+        // Guides, so they need to actually cover whatever's beneath —
+        // matches the original's pnlBarTop/pnlBarBottom panels, which
+        // were real opaque child controls sitting over the capture area.
+        drawMaskBars()
+
         let rect = captureRect
         let borderPath = NSBezierPath(rect: rect.insetBy(dx: borderWidth / 2, dy: borderWidth / 2))
         borderPath.lineWidth = borderWidth
@@ -138,6 +145,21 @@ final class CaptureFrameView: NSView {
         borderPath.stroke()
 
         drawStatusText()
+    }
+
+    private func drawMaskBars() {
+        let rect = captureRect
+        let topHeight = rect.height * settings.barTopFraction
+        let bottomHeight = rect.height * settings.barBottomFraction
+        guard topHeight > 0 || bottomHeight > 0 else { return }
+
+        settings.barColor.setFill()
+        if topHeight > 0 {
+            NSBezierPath(rect: CGRect(x: rect.minX, y: rect.maxY - topHeight, width: rect.width, height: topHeight)).fill()
+        }
+        if bottomHeight > 0 {
+            NSBezierPath(rect: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: bottomHeight)).fill()
+        }
     }
 
     // View-only alignment aid, never baked into the captured image —
@@ -215,7 +237,9 @@ final class CaptureFrameView: NSView {
         let scale = window?.backingScaleFactor ?? 1
         let nativeW = Int((rect.width * scale).rounded())
         let nativeH = Int((rect.height * scale).rounded())
-        let text = "Pos:(\(Int(origin.x)),\(Int(origin.y)))  Size W: \(nativeW) (\(Int(rect.width))), H: \(nativeH) (\(Int(rect.height)))  Elements:\(annotations.count)"
+        let barBottomPx = Int((rect.height * settings.barBottomFraction).rounded())
+        let barTopPx = Int((rect.height * settings.barTopFraction).rounded())
+        let text = "Pos:(\(Int(origin.x)),\(Int(origin.y)))  Size W: \(nativeW) (\(Int(rect.width))), H: \(nativeH) (\(Int(rect.height)))  Elements:\(annotations.count)  Bar bottom: \(barBottomPx), top: \(barTopPx)"
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor(calibratedWhite: 0.85, alpha: 1),
@@ -335,6 +359,27 @@ final class CaptureFrameView: NSView {
             self.needsDisplay = true
         }
         addSubview(guidesButton)
+
+        // Bars slider: right bar, spanning exactly the capture area's
+        // height (not the whole bar) — matches "высота слайдера высотой
+        // с область захвата".
+        let sliderRect = CGRect(
+            x: bounds.width - Self.rightBarWidth + 4,
+            y: Self.bottomBarHeight,
+            width: Self.rightBarWidth - 8,
+            height: bounds.height - Self.topBarHeight - Self.bottomBarHeight
+        )
+        barSlider = VerticalRangeSlider(frame: sliderRect)
+        barSlider.autoresizingMask = [.height, .minXMargin]
+        barSlider.topFraction = settings.barTopFraction
+        barSlider.bottomFraction = settings.barBottomFraction
+        barSlider.onChange = { [weak self] top, bottom in
+            guard let self else { return }
+            self.settings.barTopFraction = top
+            self.settings.barBottomFraction = bottom
+            self.needsDisplay = true
+        }
+        addSubview(barSlider)
 
         updateToolButtonHighlight()
     }
