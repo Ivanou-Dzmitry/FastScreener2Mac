@@ -251,9 +251,15 @@ final class AppSettings {
         var numberColor: Data
         var numberFontSize: Double
         var numberFontFamily: String
-        var textColor: Data
-        var textFontSize: Double
-        var textFontFamily: String
+        // Optional: added after profiles already existed in the wild.
+        // JSONDecoder tolerates missing keys for Optional properties, so
+        // older saved profiles without these still decode instead of
+        // failing outright — which silently broke loadProfile() (and
+        // with it, the popup's currentProfileName selection) for any
+        // profile saved before Text was added.
+        var textColor: Data?
+        var textFontSize: Double?
+        var textFontFamily: String?
         var chromeColor: Data
         var clearElementsAfterCapture: Bool
         var saveToFile: Bool
@@ -287,9 +293,9 @@ final class AppSettings {
         numberColor = Self.decode(snapshot.numberColor) ?? numberColor
         numberFontSize = CGFloat(snapshot.numberFontSize)
         numberFontFamily = snapshot.numberFontFamily
-        textColor = Self.decode(snapshot.textColor) ?? textColor
-        textFontSize = CGFloat(snapshot.textFontSize)
-        textFontFamily = snapshot.textFontFamily
+        textColor = snapshot.textColor.flatMap(Self.decode) ?? textColor
+        textFontSize = snapshot.textFontSize.map { CGFloat($0) } ?? textFontSize
+        textFontFamily = snapshot.textFontFamily ?? textFontFamily
         chromeColor = Self.decode(snapshot.chromeColor) ?? chromeColor
         clearElementsAfterCapture = snapshot.clearElementsAfterCapture
         saveToFile = snapshot.saveToFile
