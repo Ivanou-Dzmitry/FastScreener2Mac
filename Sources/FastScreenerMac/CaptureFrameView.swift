@@ -28,7 +28,7 @@ final class CaptureFrameView: NSView {
     // against the edge.
     private let fixedControlBackground = NSColor(calibratedWhite: 0.4, alpha: 1)
     private let iconClusterInset: CGFloat = CaptureFrameView.leftBarWidth
-    private let iconClusterWidth: CGFloat = 78
+    private let iconClusterWidth: CGFloat = 96 // 3 buttons x 32pt, edge-to-edge
     private let toolSlotCount: CGFloat = 5 // Arrow/Frame/Number + Save-to-Disk + Guidelines
     private let bottomCornerWidth: CGFloat = 64 // wider than leftBarWidth/rightBarWidth, per reference
 
@@ -266,17 +266,17 @@ final class CaptureFrameView: NSView {
         // inside their fixed-grey zones (iconClusterInset/Width above),
         // not flush against the window edge.
         let leftZoneX = iconClusterInset
-        hamburgerButton = IconButton(icon: IconLoader.load("menu_icon"), frame: CGRect(x: leftZoneX, y: topY + 3, width: 22, height: 22))
+        hamburgerButton = IconButton(icon: IconLoader.load("menu_icon"), frame: CGRect(x: leftZoneX, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
         hamburgerButton.autoresizingMask = [.minYMargin]
         hamburgerButton.onClick = { [weak self] in self?.showMenu() }
         addSubview(hamburgerButton)
 
-        let captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: leftZoneX + 26, y: topY + 3, width: 22, height: 22))
+        let captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
         captureButton.autoresizingMask = [.minYMargin]
         captureButton.onClick = { [weak self] in self?.onCaptureRequested?() }
         addSubview(captureButton)
 
-        let resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: leftZoneX + 52, y: topY + 3, width: 22, height: 22))
+        let resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
         resCycleButton.autoresizingMask = [.minYMargin]
         resCycleButton.onClick = { [weak self] in self?.cyclePreset() }
         addSubview(resCycleButton)
@@ -297,17 +297,17 @@ final class CaptureFrameView: NSView {
         filenameField.delegate = self
         addSubview(filenameField)
 
-        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: rightZoneX, y: topY + 3, width: 22, height: 22))
+        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: rightZoneX, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
         settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
         settingsButton.onClick = { [weak self] in self?.onSettingsRequested?() }
         addSubview(settingsButton)
 
-        let minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: rightZoneX + 26, y: topY + 3, width: 22, height: 22))
+        let minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
         minimizeButton.autoresizingMask = [.minXMargin, .minYMargin]
         minimizeButton.onClick = { [weak self] in self?.window?.miniaturize(nil) }
         addSubview(minimizeButton)
 
-        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + 52, y: topY + 3, width: 22, height: 22), hoverColor: NSColor(calibratedRed: 165.0 / 255, green: 42.0 / 255, blue: 42.0 / 255, alpha: 1)) // Brown, matching buttonCloseForm_MouseEnter
+        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10, hoverColor: NSColor(calibratedRed: 165.0 / 255, green: 42.0 / 255, blue: 42.0 / 255, alpha: 1)) // Brown, matching buttonCloseForm_MouseEnter
         closeButton.autoresizingMask = [.minXMargin, .minYMargin]
         closeButton.onClick = { NSApplication.shared.terminate(nil) }
         addSubview(closeButton)

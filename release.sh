@@ -8,7 +8,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="0.1.1"
+VERSION="0.1.2"
 APP_NAME="FastScreener2 for Mac"
 APP="$APP_NAME.app"
 
