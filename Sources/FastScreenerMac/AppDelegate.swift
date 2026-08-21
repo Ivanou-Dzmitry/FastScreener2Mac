@@ -158,7 +158,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Save to File is on.
                 if !filenameOverride.trimmingCharacters(in: .whitespaces).isEmpty {
                     settings.recordFilenameUsed(filenameOverride)
-                    frameView.refreshFilenameHistory()
                 }
 
                 if settings.clearElementsAfterCapture {

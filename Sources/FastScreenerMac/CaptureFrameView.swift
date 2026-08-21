@@ -71,16 +71,9 @@ final class CaptureFrameView: NSView {
     var onSettingsRequested: (() -> Void)?
     var onOpenFolderRequested: (() -> Void)?
     var onHelpRequested: (() -> Void)?
-    private var filenameField: NSComboBox!
+    private var filenameField: NSTextField!
     var filenameOverride: String { filenameField.stringValue }
-
-    // Repopulates the dropdown after AppDelegate records a newly-used
-    // name to settings.filenameHistory, so it's available immediately
-    // without a restart.
-    func refreshFilenameHistory() {
-        filenameField.removeAllItems()
-        filenameField.addItems(withObjectValues: settings.filenameHistory)
-    }
+    private let suggestionPanel = FilenameSuggestionPanel()
 
     private var hamburgerButton: IconButton!
     private var captureButton: IconButton!
@@ -316,16 +309,11 @@ final class CaptureFrameView: NSView {
         // here would permanently bake in whatever that happened to be.
         let filenameX = leftZoneX + iconClusterWidth + 4
         let rightZoneX = bounds.width - iconClusterInset - iconClusterWidth
-        // NSComboBox instead of a plain NSTextField: gives a native
-        // dropdown of past entries plus inline autocomplete-as-you-type,
-        // matching the original's txtbName.AutoCompleteMode = SuggestAppend
-        // over a CustomSource built from filenameHistory.
-        filenameField = NSComboBox(frame: CGRect(x: filenameX, y: topY + 4, width: 260, height: 20))
+        filenameField = NSTextField(frame: CGRect(x: filenameX, y: topY + 4, width: 260, height: 20))
         filenameField.placeholderString = "File name (\(Self.filenameMaxLength) symbols, optional)"
         filenameField.font = .systemFont(ofSize: 11)
         filenameField.autoresizingMask = [.minYMargin]
-        filenameField.completes = true
-        filenameField.addItems(withObjectValues: settings.filenameHistory)
+        filenameField.usesSingleLineMode = true
         filenameField.delegate = self
         addSubview(filenameField)
 
@@ -568,6 +556,7 @@ final class CaptureFrameView: NSView {
     // dragging the frame just moves it, no edge/corner resize handles.
     override func mouseDown(with event: NSEvent) {
         guard let window = window else { return }
+        suggestionPanel.hide()
         let winOrigin = window.frame.origin
         let mouseLoc = NSEvent.mouseLocation
         dragMode = .move(offset: CGPoint(x: mouseLoc.x - winOrigin.x, y: mouseLoc.y - winOrigin.y))
@@ -828,10 +817,43 @@ final class CaptureFrameView: NSView {
     }
 }
 
-extension CaptureFrameView: NSComboBoxDelegate {
+extension CaptureFrameView: NSTextFieldDelegate {
     func controlTextDidChange(_ obligatory: Notification) {
         if filenameField.stringValue.count > Self.filenameMaxLength {
             filenameField.stringValue = String(filenameField.stringValue.prefix(Self.filenameMaxLength))
         }
+        updateFilenameSuggestions()
+    }
+
+    func controlTextDidEndEditing(_ obligatory: Notification) {
+        suggestionPanel.hide()
+    }
+
+    // NSComboBox only opens its popup via the arrow button or the down
+    // key — the original just starts suggesting the moment you type, no
+    // button involved. A plain NSTextField plus this own lightweight
+    // popup panel matches that directly instead.
+    private func updateFilenameSuggestions() {
+        guard let window else { return }
+        let text = filenameField.stringValue
+        guard !text.isEmpty else {
+            suggestionPanel.hide()
+            return
+        }
+        let matches = settings.filenameHistory.filter {
+            $0.range(of: text, options: [.caseInsensitive]) != nil
+        }
+        guard !matches.isEmpty else {
+            suggestionPanel.hide()
+            return
+        }
+        suggestionPanel.onSelect = { [weak self] name in
+            self?.filenameField.stringValue = name
+            self?.suggestionPanel.hide()
+            self?.window?.makeFirstResponder(self?.filenameField)
+        }
+        // When the header itself has swapped to the bottom bar, the
+        // field has no room below it — open upward instead.
+        suggestionPanel.show(matches: matches, below: filenameField, in: window, openUpward: isVerticallySwapped)
     }
 }
