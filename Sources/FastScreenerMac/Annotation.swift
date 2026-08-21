@@ -1,13 +1,14 @@
 import AppKit
 
 enum AnnotationTool: CaseIterable {
-    case none, arrow, frame, number
+    case none, arrow, frame, number, text
 }
 
 enum Annotation {
     case arrow(start: CGPoint, end: CGPoint)
     case frame(rect: CGRect)
     case number(point: CGPoint, value: Int)
+    case text(point: CGPoint, string: String)
 
     func draw(color: NSColor = .systemYellow, lineWidth: CGFloat = 3, fontSize: CGFloat = 26, fontFamily: String = "") {
         switch self {
@@ -20,6 +21,8 @@ enum Annotation {
             path.stroke()
         case .number(let point, let value):
             Self.drawNumber(value, at: point, color: color, fontSize: fontSize, fontFamily: fontFamily)
+        case .text(let point, let string):
+            Self.drawText(string, at: point, color: color, fontSize: fontSize, fontFamily: fontFamily)
         }
     }
 
@@ -93,5 +96,24 @@ enum Annotation {
             return font
         }
         return NSFont.boldSystemFont(ofSize: size)
+    }
+
+    // Matches the original's RenderText: left-aligned at the click X
+    // (not centered, unlike Number), vertically centered on the click
+    // Y, no shadow copy.
+    private static func drawText(_ string: String, at point: CGPoint, color: NSColor, fontSize: CGFloat, fontFamily: String) {
+        let attrs: [NSAttributedString.Key: Any] = [.font: textFont(family: fontFamily, size: fontSize), .foregroundColor: color]
+        let size = string.size(withAttributes: attrs)
+        string.draw(at: CGPoint(x: point.x, y: point.y - size.height / 2), withAttributes: attrs)
+    }
+
+    // Regular weight, not bold — matches the original's
+    // SystemFonts.DefaultFont fallback (Number's bold default is its
+    // own choice, not shared with Text).
+    private static func textFont(family: String, size: CGFloat) -> NSFont {
+        if !family.isEmpty, let font = NSFont(name: family, size: size) {
+            return font
+        }
+        return NSFont.systemFont(ofSize: size)
     }
 }

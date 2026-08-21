@@ -29,7 +29,7 @@ final class CaptureFrameView: NSView {
     private let fixedControlBackground = NSColor(calibratedWhite: 0.4, alpha: 1)
     private let iconClusterInset: CGFloat = CaptureFrameView.leftBarWidth
     private let iconClusterWidth: CGFloat = 96 // 3 buttons x 32pt, edge-to-edge
-    private let toolSlotCount: CGFloat = 5 // Arrow/Frame/Number + Save-to-Disk + Guidelines
+    private let toolSlotCount: CGFloat = 6 // Arrow/Frame/Number/Text + Save-to-Disk + Guidelines
     private let bottomCornerWidth: CGFloat = 64 // wider than leftBarWidth/rightBarWidth, per reference
 
     // Bounding box of the left-bar tool-button stack (see setupChrome's
@@ -229,6 +229,8 @@ final class CaptureFrameView: NSView {
             annotation.draw(color: settings.frameColor, lineWidth: settings.frameStrokeWidth)
         case .number:
             annotation.draw(color: settings.numberColor, fontSize: settings.numberFontSize, fontFamily: settings.numberFontFamily)
+        case .text:
+            annotation.draw(color: settings.textColor, fontSize: settings.textFontSize, fontFamily: settings.textFontFamily)
         }
     }
 
@@ -341,6 +343,7 @@ final class CaptureFrameView: NSView {
             (.arrow, "arrow_icon"),
             (.frame, "frame_icon"),
             (.number, "number_icon"),
+            (.text, "text_icon"),
         ]
         let totalSlots = Int(toolSlotCount)
         let groupBottom = Self.bottomBarHeight + 8
@@ -504,12 +507,11 @@ final class CaptureFrameView: NSView {
         menu.addItem(undoItem)
         menu.addItem(.separator())
 
-        for (title, tool) in [("Arrow", AnnotationTool.arrow), ("Frame", .frame), ("Number", .number)] {
+        for (title, tool) in [("Arrow", AnnotationTool.arrow), ("Frame", .frame), ("Number", .number), ("Text", .text)] {
             let item = ClosureMenuItem(title: title) { [weak self] in self?.currentTool = tool }
             item.state = (tool == currentTool) ? .on : .off
             menu.addItem(item)
         }
-        menu.addItem(Self.stub("Text"))
         menu.addItem(Self.stub("Watermark"))
         menu.addItem(.separator())
 
@@ -606,6 +608,20 @@ final class CaptureFrameView: NSView {
         case .number:
             annotations.append(.number(point: p, value: nextNumber))
             nextNumber += 1
+        case .text:
+            // Unlike Arrow/Frame/Number, the original only ever keeps
+            // ONE text on screen at a time — placing a new one replaces
+            // whatever was there (RemovePreviousTextFromUndo), so any
+            // existing .text is removed before appending the new one.
+            guard let window else { break }
+            let existing = annotations.compactMap { annotation -> String? in
+                if case .text(_, let string) = annotation { return string }
+                return nil
+            }.first
+            if let entered = TextToolDialog.prompt(over: window, initialText: existing ?? "") {
+                annotations.removeAll { if case .text = $0 { return true }; return false }
+                annotations.append(.text(point: p, string: entered))
+            }
         case .none:
             break
         }
@@ -646,7 +662,7 @@ final class CaptureFrameView: NSView {
                 annotations.append(.frame(rect: rect))
             }
 
-        case .none, .number:
+        case .none, .number, .text:
             break
         }
     }
@@ -706,6 +722,7 @@ final class CaptureFrameView: NSView {
             case "1": currentTool = .arrow; return
             case "2": currentTool = .frame; return
             case "3": currentTool = .number; return
+            case "4": currentTool = .text; return
             case "0": currentTool = .none; return
             default: break
             }

@@ -37,6 +37,10 @@ final class AppSettings {
     var numberFontSize: CGFloat { didSet { save() } }
     var numberFontFamily: String { didSet { save() } } // empty = system default
 
+    var textColor: NSColor { didSet { save() } }
+    var textFontSize: CGFloat { didSet { save() } }
+    var textFontFamily: String { didSet { save() } } // empty = system default
+
     var chromeColor: NSColor { didSet { save() } } // top/left/bottom bar background ("Panel Color" in the original)
     var clearElementsAfterCapture: Bool { didSet { save() } }
     var saveToFile: Bool { didSet { save() } } // if off, F4 only copies to clipboard
@@ -120,6 +124,10 @@ final class AppSettings {
         numberFontSize = Self.loadNumber(key: "numberFontSize") ?? 26
         numberFontFamily = defaults.string(forKey: "numberFontFamily") ?? ""
 
+        textColor = Self.loadColor(key: "textColor") ?? Self.defaultOrange
+        textFontSize = Self.loadNumber(key: "textFontSize") ?? 26
+        textFontFamily = defaults.string(forKey: "textFontFamily") ?? ""
+
         chromeColor = Self.loadColor(key: "chromeColor") ?? NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 1) // SlateGray, opaque like the original
         clearElementsAfterCapture = defaults.object(forKey: "clearElementsAfterCapture") as? Bool ?? true
         saveToFile = defaults.object(forKey: "saveToFile") as? Bool ?? true
@@ -156,6 +164,8 @@ final class AppSettings {
         defaults.set(Double(frameFixedHeight), forKey: "frameFixedHeight")
         defaults.set(Double(numberFontSize), forKey: "numberFontSize")
         defaults.set(numberFontFamily, forKey: "numberFontFamily")
+        defaults.set(Double(textFontSize), forKey: "textFontSize")
+        defaults.set(textFontFamily, forKey: "textFontFamily")
         defaults.set(clearElementsAfterCapture, forKey: "clearElementsAfterCapture")
         defaults.set(saveToFile, forKey: "saveToFile")
         defaults.set(showInfoLabel, forKey: "showInfoLabel")
@@ -181,6 +191,7 @@ final class AppSettings {
         Self.saveColor(arrowColor, key: "arrowColor")
         Self.saveColor(frameColor, key: "frameColor")
         Self.saveColor(numberColor, key: "numberColor")
+        Self.saveColor(textColor, key: "textColor")
         Self.saveColor(chromeColor, key: "chromeColor")
     }
 
@@ -219,6 +230,9 @@ final class AppSettings {
         var numberColor: Data
         var numberFontSize: Double
         var numberFontFamily: String
+        var textColor: Data
+        var textFontSize: Double
+        var textFontFamily: String
         var chromeColor: Data
         var clearElementsAfterCapture: Bool
         var saveToFile: Bool
@@ -234,6 +248,7 @@ final class AppSettings {
             frameColor: Self.encode(frameColor), frameStrokeWidth: frameStrokeWidth,
             frameFixedWidth: frameFixedWidth, frameFixedHeight: frameFixedHeight,
             numberColor: Self.encode(numberColor), numberFontSize: numberFontSize, numberFontFamily: numberFontFamily,
+            textColor: Self.encode(textColor), textFontSize: textFontSize, textFontFamily: textFontFamily,
             chromeColor: Self.encode(chromeColor), clearElementsAfterCapture: clearElementsAfterCapture,
             saveToFile: saveToFile, showInfoLabel: showInfoLabel, dpiScale: dpiScale,
             presetWidths: presetSizes.map { Double($0.width) }, presetHeights: presetSizes.map { Double($0.height) }
@@ -251,6 +266,9 @@ final class AppSettings {
         numberColor = Self.decode(snapshot.numberColor) ?? numberColor
         numberFontSize = CGFloat(snapshot.numberFontSize)
         numberFontFamily = snapshot.numberFontFamily
+        textColor = Self.decode(snapshot.textColor) ?? textColor
+        textFontSize = CGFloat(snapshot.textFontSize)
+        textFontFamily = snapshot.textFontFamily
         chromeColor = Self.decode(snapshot.chromeColor) ?? chromeColor
         clearElementsAfterCapture = snapshot.clearElementsAfterCapture
         saveToFile = snapshot.saveToFile
@@ -312,6 +330,9 @@ final class AppSettings {
         numberColor = Self.defaultOrange
         numberFontSize = 26
         numberFontFamily = ""
+        textColor = Self.defaultOrange
+        textFontSize = 26
+        textFontFamily = ""
         chromeColor = NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 1)
         clearElementsAfterCapture = true
         saveToFile = true

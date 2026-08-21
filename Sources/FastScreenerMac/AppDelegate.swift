@@ -261,6 +261,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     annotation.draw(color: settings.frameColor, lineWidth: settings.frameStrokeWidth)
                 case .number:
                     annotation.draw(color: settings.numberColor, fontSize: settings.numberFontSize, fontFamily: settings.numberFontFamily)
+                case .text:
+                    annotation.draw(color: settings.textColor, fontSize: settings.textFontSize, fontFamily: settings.textFontFamily)
                 }
             }
             context.restoreGraphicsState()
