@@ -18,6 +18,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/FastScreenerMac "$APP/Contents/MacOS/"
 cp Resources-App/Info.plist "$APP/Contents/Info.plist"
+cp Resources-App/AppIcon.icns "$APP/Contents/Resources/"
 cp -R .build/release/FastScreenerMac_FastScreenerMac.bundle "$APP/Contents/Resources/"
 
 codesign --force --deep -s - "$APP"
