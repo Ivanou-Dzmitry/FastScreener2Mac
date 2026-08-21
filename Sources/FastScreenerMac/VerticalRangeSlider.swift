@@ -25,7 +25,7 @@ final class VerticalRangeSlider: NSView {
         let bottomY = thumbY(forBottom: bottomFraction)
 
         // Unmasked middle range, for visual feedback.
-        NSColor(calibratedWhite: 0.45, alpha: 1).setFill()
+        NSColor(calibratedRed: 1.0, green: 0.65, blue: 0.0, alpha: 1).setFill()
         NSBezierPath(rect: CGRect(x: trackRect.minX, y: bottomY, width: trackWidth, height: max(0, topY - bottomY))).fill()
 
         drawThumb(at: topY)

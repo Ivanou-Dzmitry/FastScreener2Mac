@@ -302,7 +302,7 @@ final class SettingsWindow: NSWindow {
         let popup = NSPopUpButton(frame: .zero, pullsDown: false)
         popup.translatesAutoresizingMaskIntoConstraints = false
         popup.addItems(withTitles: settings.profileNames)
-        popup.selectItem(withTitle: "default")
+        popup.selectItem(withTitle: settings.currentProfileName)
         profilePopup = popup
 
         let profileLabel = NSTextField(labelWithString: "Profile:")

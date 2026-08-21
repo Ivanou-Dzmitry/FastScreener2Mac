@@ -10,7 +10,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screen = NSScreen.main!.frame
-        let captureSize = CGSize(width: 800, height: 450)
+        // Only used when no autosaved window frame exists yet (first
+        // launch, or after resetting) — setFrameUsingName below restores
+        // whatever size/position was there when the app last closed, and
+        // takes priority over this.
+        let captureSize = AppSettings.shared.presetSizes.first ?? CGSize(width: 650, height: 366)
         let windowSize = CGSize(
             width: captureSize.width + CaptureFrameView.leftBarWidth + CaptureFrameView.rightBarWidth,
             height: captureSize.height + CaptureFrameView.topBarHeight + CaptureFrameView.bottomBarHeight

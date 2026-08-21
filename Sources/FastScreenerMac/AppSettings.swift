@@ -82,6 +82,11 @@ final class AppSettings {
     var barTopFraction: CGFloat { didSet { save() } }
     var barBottomFraction: CGFloat { didSet { save() } }
 
+    // Name of the profile last saved/loaded, persisted across restarts so
+    // the Settings profile dropdown reopens on the same selection instead
+    // of always jumping back to "default".
+    var currentProfileName: String { didSet { save() } }
+
     private init() {
         arrowColor = Self.loadColor(key: "arrowColor") ?? .cyan
         arrowLength = Self.loadNumber(key: "arrowLength") ?? 50
@@ -119,6 +124,8 @@ final class AppSettings {
         barColor = Self.loadColor(key: "barColor") ?? NSColor(calibratedWhite: 0.4, alpha: 1) // DarkGray
         barTopFraction = Self.loadNumber(key: "barTopFraction") ?? 0
         barBottomFraction = Self.loadNumber(key: "barBottomFraction") ?? 0
+
+        currentProfileName = defaults.string(forKey: "currentProfileName") ?? "default"
     }
 
     private func save() {
@@ -149,6 +156,7 @@ final class AppSettings {
         defaults.set(Double(barTopFraction), forKey: "barTopFraction")
         defaults.set(Double(barBottomFraction), forKey: "barBottomFraction")
         Self.saveColor(barColor, key: "barColor")
+        defaults.set(currentProfileName, forKey: "currentProfileName")
         Self.saveColor(arrowColor, key: "arrowColor")
         Self.saveColor(frameColor, key: "frameColor")
         Self.saveColor(numberColor, key: "numberColor")
@@ -256,17 +264,20 @@ final class AppSettings {
         var dict = profilesDict
         dict[name] = data
         profilesDict = dict
+        currentProfileName = name
     }
 
     func loadProfile(named name: String) {
         guard let data = profilesDict[name], let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) else { return }
         apply(snapshot)
+        currentProfileName = name
     }
 
     func deleteProfile(named name: String) {
         var dict = profilesDict
         dict.removeValue(forKey: name)
         profilesDict = dict
+        if currentProfileName == name { currentProfileName = "default" }
     }
 
     func resetToDefaults() {
