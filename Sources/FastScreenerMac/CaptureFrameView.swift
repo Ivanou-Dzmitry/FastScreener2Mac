@@ -307,7 +307,7 @@ final class CaptureFrameView: NSView {
         minimizeButton.onClick = { [weak self] in self?.window?.miniaturize(nil) }
         addSubview(minimizeButton)
 
-        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + 52, y: topY + 3, width: 22, height: 22))
+        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + 52, y: topY + 3, width: 22, height: 22), hoverColor: NSColor(calibratedRed: 165.0 / 255, green: 42.0 / 255, blue: 42.0 / 255, alpha: 1)) // Brown, matching buttonCloseForm_MouseEnter
         closeButton.autoresizingMask = [.minXMargin, .minYMargin]
         closeButton.onClick = { NSApplication.shared.terminate(nil) }
         addSubview(closeButton)
