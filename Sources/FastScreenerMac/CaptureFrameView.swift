@@ -37,7 +37,7 @@ final class CaptureFrameView: NSView {
     // whole left bar.
     private var toolClusterZone: CGRect {
         let groupBottom = Self.bottomBarHeight + 8
-        let groupTop = groupBottom + toolSlotCount * 30
+        let groupTop = groupBottom + toolSlotCount * Self.leftBarWidth
         return CGRect(x: 0, y: groupBottom - 4, width: Self.leftBarWidth, height: groupTop - groupBottom + 8)
     }
 
@@ -327,8 +327,8 @@ final class CaptureFrameView: NSView {
         for (index, pair) in toolIcons.enumerated() {
             let (tool, iconName) = pair
             let reverseIndex = totalSlots - 1 - index
-            let y = groupBottom + CGFloat(reverseIndex) * 30
-            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 0, y: y, width: Self.leftBarWidth, height: 24), showsBackgroundWhenInactive: true, iconPadding: 9)
+            let y = groupBottom + CGFloat(reverseIndex) * Self.leftBarWidth
+            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 0, y: y, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 9)
             button.autoresizingMask = [.maxYMargin]
             button.onClick = { [weak self] in self?.currentTool = tool }
             addSubview(button)
@@ -338,7 +338,7 @@ final class CaptureFrameView: NSView {
         // Save-to-Disk toggle: same on/off flag as the hamburger menu's
         // "Save to File" item — active (blue) means F4 also writes a
         // PNG to disk, inactive means clipboard only.
-        saveToDiskButton = IconButton(icon: IconLoader.load("save_icon"), frame: CGRect(x: 0, y: groupBottom + 30, width: Self.leftBarWidth, height: 24), showsBackgroundWhenInactive: true, iconPadding: 9)
+        saveToDiskButton = IconButton(icon: IconLoader.load("save_icon"), frame: CGRect(x: 0, y: groupBottom + Self.leftBarWidth, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 9)
         saveToDiskButton.autoresizingMask = [.maxYMargin]
         saveToDiskButton.isActive = settings.saveToFile
         saveToDiskButton.onClick = { [weak self] in
@@ -350,7 +350,7 @@ final class CaptureFrameView: NSView {
 
         // Guidelines toggle: same on/off flag as the hamburger menu's
         // "Guidelines" item.
-        guidesButton = IconButton(icon: IconLoader.load("guides_icon"), frame: CGRect(x: 0, y: groupBottom, width: Self.leftBarWidth, height: 24), showsBackgroundWhenInactive: true, iconPadding: 9)
+        guidesButton = IconButton(icon: IconLoader.load("guides_icon"), frame: CGRect(x: 0, y: groupBottom, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 9)
         guidesButton.autoresizingMask = [.maxYMargin]
         guidesButton.isActive = settings.showGuides
         guidesButton.onClick = { [weak self] in
