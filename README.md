@@ -1,6 +1,6 @@
 # FastScreenerMac
 
-A lightweight macOS screen capture and annotation tool — a native Mac port of [FastScreener2](https://github.com/Ivanou-Dzmitry/FastScreener2) (Windows). Define a capture area, annotate it with arrows, frames, and numbers, then save and/or copy it to the clipboard, all without leaving your workflow.
+A lightweight macOS screen capture and annotation tool — a native Mac port of [FastScreener2](https://github.com/Ivanou-Dzmitry/FastScreener2) (Windows). Define a capture area, annotate it with arrows, frames, numbers, text, and a watermark, then save and/or copy it to the clipboard, all without leaving your workflow.
 
 **Built with:** Swift 6 · AppKit · ScreenCaptureKit · macOS 14+
 
@@ -13,6 +13,7 @@ A lightweight macOS screen capture and annotation tool — a native Mac port of 
 - Global hotkey **F4** captures and copies to clipboard (and saves to file, if enabled) from anywhere, without needing to focus the app
 - **4 preset capture sizes** (`⌥1`–`⌥4`), a resolution-cycle toolbar button, **Fullscreen** (`⌥5`), and **Max Size** toggle (`⌃⇧M`)
 - The capture window snaps to screen edges — the actual capture area's edges snap flush, not just the window's outer chrome
+- Drag the window past the edge of the screen and the toolbar swaps to the opposite side (tools left↔right, header top↔bottom) so it's never stranded off-screen
 - Captures via **ScreenCaptureKit**, Apple's native capture API, with correct handling of Retina/mixed-DPI multi-monitor setups
 
 ### Annotation Tools
@@ -46,7 +47,7 @@ All visual parameters (colors, sizes, arrow style, font, bar color, etc.) live i
 - **PNG Depth:** 32bpp (with alpha, default) / 24bpp (no alpha) / 8bpp — macOS has no simple indexed-palette PNG encoder, so 8bpp falls back to plain 24bpp RGB rather than a true 256-color palette
 - **JPEG Compression:** quality 1–100 (default 75)
 - **Save Folder:** configurable in Settings; defaults to `~/Desktop/FastScreener Screens`
-- **File naming:** an optional fixed name, or an auto-generated timestamped name
+- **File naming:** an optional fixed name, or an auto-generated timestamped name — the name field remembers your last 10 names and suggests matches as you type
 
 ### DPI Scale
 When on (default), the saved/copied image's pixel dimensions always exactly match the capture size shown — the app downsamples native Retina pixels so a 650×366 capture is always a 650×366px file, regardless of the display's scale factor. When off, it keeps the display's native pixel density.
@@ -78,13 +79,14 @@ swift run FastScreenerMac
 | Shortcut | Action |
 |----------|--------|
 | `F4` | Capture (global, works even when unfocused) |
-| `1` / `2` / `3` / `0` | Select Arrow / Frame / Number / no tool |
+| `1` / `2` / `3` / `4` / `0` | Select Arrow / Frame / Number / Text / no tool |
 | `⌘Z` | Undo last annotation |
 | `⌘⇧Z` | Clear all annotations |
 | `⌥1`–`⌥4` | Apply capture size preset 1–4 |
 | `⌥5` | Fullscreen capture size |
 | `⌃⇧M` | Toggle Max Size |
 | `⌃→` | Cycle to the next preset size |
+| `F1` | Open the Help window |
 
 ---
 
