@@ -266,17 +266,17 @@ final class CaptureFrameView: NSView {
         // inside their fixed-grey zones (iconClusterInset/Width above),
         // not flush against the window edge.
         let leftZoneX = iconClusterInset
-        hamburgerButton = IconButton(icon: IconLoader.load("menu_icon"), frame: CGRect(x: leftZoneX, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
+        hamburgerButton = IconButton(icon: IconLoader.load("menu_icon"), frame: CGRect(x: leftZoneX, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         hamburgerButton.autoresizingMask = [.minYMargin]
         hamburgerButton.onClick = { [weak self] in self?.showMenu() }
         addSubview(hamburgerButton)
 
-        let captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
+        let captureButton = IconButton(icon: IconLoader.load("screen_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         captureButton.autoresizingMask = [.minYMargin]
         captureButton.onClick = { [weak self] in self?.onCaptureRequested?() }
         addSubview(captureButton)
 
-        let resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
+        let resCycleButton = IconButton(icon: IconLoader.load("res_cycle_icon"), frame: CGRect(x: leftZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         resCycleButton.autoresizingMask = [.minYMargin]
         resCycleButton.onClick = { [weak self] in self?.cyclePreset() }
         addSubview(resCycleButton)
@@ -297,17 +297,17 @@ final class CaptureFrameView: NSView {
         filenameField.delegate = self
         addSubview(filenameField)
 
-        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: rightZoneX, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
+        let settingsButton = IconButton(icon: IconLoader.load("settings_icon"), frame: CGRect(x: rightZoneX, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         settingsButton.autoresizingMask = [.minXMargin, .minYMargin]
         settingsButton.onClick = { [weak self] in self?.onSettingsRequested?() }
         addSubview(settingsButton)
 
-        let minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10)
+        let minimizeButton = IconButton(icon: IconLoader.load("minimize_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4)
         minimizeButton.autoresizingMask = [.minXMargin, .minYMargin]
         minimizeButton.onClick = { [weak self] in self?.window?.miniaturize(nil) }
         addSubview(minimizeButton)
 
-        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 10, hoverColor: NSColor(calibratedRed: 165.0 / 255, green: 42.0 / 255, blue: 42.0 / 255, alpha: 1)) // Brown, matching buttonCloseForm_MouseEnter
+        let closeButton = IconButton(icon: IconLoader.load("close_icon"), frame: CGRect(x: rightZoneX + Self.topBarHeight * 2, y: topY, width: Self.topBarHeight, height: Self.topBarHeight), iconPadding: 4, hoverColor: NSColor(calibratedRed: 165.0 / 255, green: 42.0 / 255, blue: 42.0 / 255, alpha: 1)) // Brown, matching buttonCloseForm_MouseEnter
         closeButton.autoresizingMask = [.minXMargin, .minYMargin]
         closeButton.onClick = { NSApplication.shared.terminate(nil) }
         addSubview(closeButton)
@@ -328,7 +328,7 @@ final class CaptureFrameView: NSView {
             let (tool, iconName) = pair
             let reverseIndex = totalSlots - 1 - index
             let y = groupBottom + CGFloat(reverseIndex) * Self.leftBarWidth
-            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 0, y: y, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 9)
+            let button = IconButton(icon: IconLoader.load(iconName), frame: CGRect(x: 0, y: y, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 4)
             button.autoresizingMask = [.maxYMargin]
             button.onClick = { [weak self] in self?.currentTool = tool }
             addSubview(button)
@@ -338,7 +338,7 @@ final class CaptureFrameView: NSView {
         // Save-to-Disk toggle: same on/off flag as the hamburger menu's
         // "Save to File" item — active (blue) means F4 also writes a
         // PNG to disk, inactive means clipboard only.
-        saveToDiskButton = IconButton(icon: IconLoader.load("save_icon"), frame: CGRect(x: 0, y: groupBottom + Self.leftBarWidth, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 9)
+        saveToDiskButton = IconButton(icon: IconLoader.load("save_icon"), frame: CGRect(x: 0, y: groupBottom + Self.leftBarWidth, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 4)
         saveToDiskButton.autoresizingMask = [.maxYMargin]
         saveToDiskButton.isActive = settings.saveToFile
         saveToDiskButton.onClick = { [weak self] in
@@ -350,7 +350,7 @@ final class CaptureFrameView: NSView {
 
         // Guidelines toggle: same on/off flag as the hamburger menu's
         // "Guidelines" item.
-        guidesButton = IconButton(icon: IconLoader.load("guides_icon"), frame: CGRect(x: 0, y: groupBottom, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 9)
+        guidesButton = IconButton(icon: IconLoader.load("guides_icon"), frame: CGRect(x: 0, y: groupBottom, width: Self.leftBarWidth, height: Self.leftBarWidth), showsBackgroundWhenInactive: true, iconPadding: 4)
         guidesButton.autoresizingMask = [.maxYMargin]
         guidesButton.isActive = settings.showGuides
         guidesButton.onClick = { [weak self] in

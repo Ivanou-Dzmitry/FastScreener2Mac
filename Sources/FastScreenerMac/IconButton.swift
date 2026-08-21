@@ -41,14 +41,14 @@ final class IconButton: NSView {
     override func mouseEntered(with event: NSEvent) { isHovering = true }
     override func mouseExited(with event: NSEvent) { isHovering = false }
 
-    // Dark grey when off, near-black when on — the icons are white, so a
-    // light-grey active chip (the original's look) washed out the
-    // contrast here; near-black keeps the white icon clearly visible in
-    // both states instead. Square corners, full bar width — matches the
+    // Dark grey when off, white when on — icons are black (matching the
+    // original), so the active chip needs to be light for the icon to
+    // stay visible; a dark active chip was only needed back when icons
+    // were white. Square corners, full bar width — matches the
     // reference, not a rounded inset "pill".
     override func draw(_ dirtyRect: NSRect) {
         if isActive {
-            NSColor(calibratedWhite: 0.12, alpha: 1).setFill()
+            NSColor(calibratedWhite: 1, alpha: 1).setFill()
             NSBezierPath(rect: bounds).fill()
         } else if isHovering, let hoverColor {
             hoverColor.setFill()

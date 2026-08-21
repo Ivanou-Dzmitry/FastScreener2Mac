@@ -18,14 +18,19 @@ final class VerticalRangeSlider: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let trackWidth = bounds.width / 3
         let trackRect = CGRect(x: bounds.midX - trackWidth / 2, y: 0, width: trackWidth, height: bounds.height)
-        NSColor(calibratedWhite: 0.7, alpha: 1).setFill()
-        NSBezierPath(rect: trackRect).fill()
 
         let topY = thumbY(forTop: topFraction)
         let bottomY = thumbY(forBottom: bottomFraction)
 
-        // Unmasked middle range, for visual feedback.
+        // Masked zones (top/bottom, outside the thumbs) are orange —
+        // this is what actually gets covered on the screenshot. The
+        // unmasked middle range between the thumbs is the same grey as
+        // the tool button blocks, not the masked color.
         NSColor(calibratedRed: 1.0, green: 0.65, blue: 0.0, alpha: 1).setFill()
+        NSBezierPath(rect: CGRect(x: trackRect.minX, y: topY, width: trackWidth, height: bounds.height - topY)).fill()
+        NSBezierPath(rect: CGRect(x: trackRect.minX, y: 0, width: trackWidth, height: bottomY)).fill()
+
+        NSColor(calibratedWhite: 0.35, alpha: 1).setFill()
         NSBezierPath(rect: CGRect(x: trackRect.minX, y: bottomY, width: trackWidth, height: max(0, topY - bottomY))).fill()
 
         drawThumb(at: topY)
