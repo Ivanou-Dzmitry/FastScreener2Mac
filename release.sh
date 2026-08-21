@@ -25,6 +25,13 @@ codesign --force --deep -s - "$APP"
 
 ZIP="FastScreener2-for-Mac-$VERSION.zip"
 rm -f "$ZIP"
-ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+# --sequesterRsrc littered the archive with a __MACOSX/._* AppleDouble
+# entry per file (metadata this app has none of) and defaulted to
+# uncompressed "store" — bloats the zip and has been known to trip up
+# GitHub's release-asset upload with a generic processing error.
+# --norsrc drops all of that; xattr clears the quarantine flag etc.
+# first so ditto has nothing extra to carry over regardless.
+xattr -cr "$APP"
+ditto -c -k --norsrc --keepParent "$APP" "$ZIP"
 
 echo "Built $APP and $ZIP"
