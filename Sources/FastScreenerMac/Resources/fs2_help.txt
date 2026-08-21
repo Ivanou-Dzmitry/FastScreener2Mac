@@ -1,4 +1,4 @@
-FastScreenerMac
+FastScreener2 for Mac 0.1.1
 Author: Dzmitry Ivanou
 Contact: id.cgtalk@gmail.com
 ---------------------------------

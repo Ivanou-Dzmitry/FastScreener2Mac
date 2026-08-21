@@ -12,6 +12,11 @@ final class AppSettings {
 
     private let defaults = UserDefaults.standard
     private static let profilesKey = "settingsProfiles"
+    // Matches the Windows app's CreateDefaultSettings() first-run values
+    // exactly (frame_color / number_color both "#FFA500", not the .NET
+    // named colors "Orange" (Color.Orange) or "OrangeRed" that appear
+    // elsewhere in that file's fallback code paths).
+    static let defaultOrange = NSColor(calibratedRed: 0xFF / 255.0, green: 0xA5 / 255.0, blue: 0x00 / 255.0, alpha: 1)
     static let defaultProfileSizes: [CGSize] = [
         CGSize(width: 650, height: 366),
         CGSize(width: 650, height: 650),
@@ -92,12 +97,12 @@ final class AppSettings {
         arrowLength = Self.loadNumber(key: "arrowLength") ?? 50
         arrowWidth = Self.loadNumber(key: "arrowWidth") ?? 1
 
-        frameColor = Self.loadColor(key: "frameColor") ?? NSColor(calibratedRed: 1.0, green: 0.27, blue: 0.0, alpha: 1.0)
+        frameColor = Self.loadColor(key: "frameColor") ?? Self.defaultOrange
         frameStrokeWidth = Self.loadNumber(key: "frameStrokeWidth") ?? 1
         frameFixedWidth = Self.loadNumber(key: "frameFixedWidth") ?? 80
         frameFixedHeight = Self.loadNumber(key: "frameFixedHeight") ?? 80
 
-        numberColor = Self.loadColor(key: "numberColor") ?? .yellow
+        numberColor = Self.loadColor(key: "numberColor") ?? Self.defaultOrange
         numberFontSize = Self.loadNumber(key: "numberFontSize") ?? 26
         numberFontFamily = defaults.string(forKey: "numberFontFamily") ?? ""
 
@@ -115,13 +120,13 @@ final class AppSettings {
 
         showGuides = defaults.object(forKey: "showGuides") as? Bool ?? false
         guidelineType = defaults.object(forKey: "guidelineType") as? Int ?? 3
-        guideColor = Self.loadColor(key: "guideColor") ?? NSColor(calibratedWhite: 0.75, alpha: 1)
+        guideColor = Self.loadColor(key: "guideColor") ?? NSColor(calibratedWhite: 0xD3 / 255.0, alpha: 1) // LightGray #D3D3D3
         guideTopIndent = Self.loadNumber(key: "guideTopIndent") ?? 10
         guideBottomIndent = Self.loadNumber(key: "guideBottomIndent") ?? 10
         guideLeftIndent = Self.loadNumber(key: "guideLeftIndent") ?? 10
         guideRightIndent = Self.loadNumber(key: "guideRightIndent") ?? 10
 
-        barColor = Self.loadColor(key: "barColor") ?? NSColor(calibratedWhite: 0.4, alpha: 1) // DarkGray
+        barColor = Self.loadColor(key: "barColor") ?? NSColor(calibratedWhite: 0x31 / 255.0, alpha: 1) // #313131
         barTopFraction = Self.loadNumber(key: "barTopFraction") ?? 0
         barBottomFraction = Self.loadNumber(key: "barBottomFraction") ?? 0
 
@@ -284,11 +289,11 @@ final class AppSettings {
         arrowColor = .cyan
         arrowLength = 50
         arrowWidth = 1
-        frameColor = NSColor(calibratedRed: 1.0, green: 0.27, blue: 0.0, alpha: 1.0)
+        frameColor = Self.defaultOrange
         frameStrokeWidth = 1
         frameFixedWidth = 80
         frameFixedHeight = 80
-        numberColor = .yellow
+        numberColor = Self.defaultOrange
         numberFontSize = 26
         numberFontFamily = ""
         chromeColor = NSColor(calibratedRed: 112.0 / 255, green: 128.0 / 255, blue: 144.0 / 255, alpha: 0.92)
@@ -303,12 +308,12 @@ final class AppSettings {
         jpegQuality = 75
         showGuides = false
         guidelineType = 3
-        guideColor = NSColor(calibratedWhite: 0.75, alpha: 1)
+        guideColor = NSColor(calibratedWhite: 0xD3 / 255.0, alpha: 1)
         guideTopIndent = 10
         guideBottomIndent = 10
         guideLeftIndent = 10
         guideRightIndent = 10
-        barColor = NSColor(calibratedWhite: 0.4, alpha: 1)
+        barColor = NSColor(calibratedWhite: 0x31 / 255.0, alpha: 1)
         barTopFraction = 0
         barBottomFraction = 0
     }
